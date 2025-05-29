@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Entry, EntryType, PriorityLevel } from '../types';
 import { formatDueDate, formatDateShort, formatArchivedAtDate, formatDate } from '../utils/dateUtils';
@@ -52,16 +49,20 @@ const ActionButton: React.FC<{ onClick: (e: React.MouseEvent) => void; ariaLabel
   </button>
 );
 
-const ClearInputButton: React.FC<{ onClick: (e: React.MouseEvent) => void; title: string; className?: string }> =
-  ({ onClick, title, className }) => (
+const ClearInputButton: React.FC<{ onClick: (e: React.MouseEvent) => void; title: string; }> =
+  ({ onClick, title }) => (
   <button
     type="button"
     onClick={(e) => { e.stopPropagation(); onClick(e); }}
-    className={`absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--destructive-color))] focus:outline-none ${className}`}
+    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full
+               text-gray-400 hover:text-[rgb(var(--destructive-color))]
+               focus:outline-none focus:ring-1 focus:ring-[rgb(var(--accent-color))]
+               hover:bg-[rgba(var(--button-secondary-bg-color),0.3)]
+               transition-colors duration-150 z-10"
     aria-label={title}
     title={title}
   >
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
     </svg>
   </button>
@@ -152,24 +153,17 @@ const EntryItem: React.FC<EntryItemProps> = ({
       alert('Title cannot be empty.');
       return;
     }
+    
     let finalSnoozedUntil: string | undefined = undefined;
-    if (editSnoozedUntilDate && editSnoozedUntilTime) {
-        const snoozeDateTime = new Date(`${editSnoozedUntilDate}T${editSnoozedUntilTime}:00`);
+    if (editSnoozedUntilDate) { 
+      const effectiveTime = editSnoozedUntilTime || "00:00"; 
+      const snoozeDateTime = new Date(`${editSnoozedUntilDate}T${effectiveTime}:00`); 
+
+      if (!isNaN(snoozeDateTime.getTime())) { 
         if (snoozeDateTime > new Date()) {
-            finalSnoozedUntil = snoozeDateTime.toISOString();
-        } else if (snoozedUntil) { 
-             // If new date/time is in past, but was snoozed, effectively unsnooze by setting to undefined
-            finalSnoozedUntil = undefined; 
+          finalSnoozedUntil = snoozeDateTime.toISOString();
         }
-    } else if ((!editSnoozedUntilDate || !editSnoozedUntilTime) && snoozedUntil ) { 
-        // If date or time is cleared, unsnooze
-        finalSnoozedUntil = undefined;
-    } else if (editSnoozedUntilDate && editSnoozedUntilTime) {
-        // This case is for when it wasn't snoozed before, but now is
-        const snoozeDateTime = new Date(`${editSnoozedUntilDate}T${editSnoozedUntilTime}:00`);
-         if (snoozeDateTime > new Date()) {
-            finalSnoozedUntil = snoozeDateTime.toISOString();
-        }
+      }
     }
 
 
@@ -287,7 +281,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
           </div>
           <div className="relative">
             <label htmlFor={`edit-dueDate-${id}`} className={labelClass}>Due Date</label>
-            <input id={`edit-dueDate-${id}`} type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className={`${inputBaseClass} appearance-none dark-input-icons pr-8`} aria-label="Edit due date" />
+            <input id={`edit-dueDate-${id}`} type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className={`${inputBaseClass} appearance-none dark-input-icons pr-10`} aria-label="Edit due date" />
             {editDueDate && <ClearInputButton onClick={() => setEditDueDate('')} title="Clear Due Date" />}
           </div>
           <div>
@@ -312,7 +306,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
             <div className="grid grid-cols-2 gap-x-3 items-end">
                 <div className="relative">
                     <label htmlFor={`edit-snooze-date-${id}`} className={labelClass}>Snooze Until Date (Optional)</label>
-                    <input id={`edit-snooze-date-${id}`} type="date" value={editSnoozedUntilDate} onChange={(e) => setEditSnoozedUntilDate(e.target.value)} className={`${inputBaseClass} appearance-none dark-input-icons pr-8`} aria-label="Edit snooze date" min={new Date().toISOString().split('T')[0]}/>
+                    <input id={`edit-snooze-date-${id}`} type="date" value={editSnoozedUntilDate} onChange={(e) => setEditSnoozedUntilDate(e.target.value)} className={`${inputBaseClass} appearance-none dark-input-icons pr-10`} aria-label="Edit snooze date" min={new Date().toISOString().split('T')[0]}/>
                     {(editSnoozedUntilDate || editSnoozedUntilTime) && 
                         <ClearInputButton 
                             onClick={() => { setEditSnoozedUntilDate(''); setEditSnoozedUntilTime(''); }} 
@@ -356,9 +350,9 @@ const EntryItem: React.FC<EntryItemProps> = ({
             {allowActions && isCurrentlySnoozed && onUnsnoozeItem && (
               <ActionButton onClick={handleUnsnoozeClick} ariaLabel={`Unsnooze ${type.toLowerCase()} ${title}`} title="Unsnooze" className={`${actionIconColor} hover:text-green-400`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-2.474mem0 0l.475-2.076m4.125 0l.387 1.688m-1.542-1.688L12 10.5m0 0l-1.132-4.938L9 7.5m0 0l3 3m0 0l3-3m-3 3v4.5m0 0H9m3 0h3m-3 0a9 9 0 11-18 0 9 9 0 0118 0zM4 12.077A8.906 8.906 0 002.026 15C3.21 16.89 5.846 18 9 18s5.79-1.11 7.974-3A8.906 8.906 0 0020 12.077" />
-                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                   <line x1="3" y1="3" x2="21" y2="21" strokeWidth="2" /> {/* Line through the clock */}
+                  {/* Simplified Unsnooze Icon (Bell with slash) */}
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0M3.172 5.172a4.001 4.001 0 015.656 0L12 8.343l3.172-3.171a4.001 4.001 0 115.656 5.656L12 16.828l-3.172-3.171a4.001 4.001 0 010-5.656z" />
+                  <line x1="4" y1="4" x2="20" y2="20" strokeWidth="1.5" />
                 </svg>
               </ActionButton>
             )}
@@ -414,14 +408,14 @@ const EntryItem: React.FC<EntryItemProps> = ({
                 {contact && <span className="italic">{contact}</span>}
             </div>
 
-            <div className={`flex-shrink-0 text-right ${dateColor}`}>
+            <div className={`flex-shrink-0 text-right ${dateColor} space-y-0.5`}>
               {dueDate && type === EntryType.Task && !isCompleted && !isArchived && (
                 <p className="font-medium text-[rgb(var(--highlight-color))]">
                   Due: {formatDueDate(dueDate)}
                 </p>
               )}
               {isCurrentlySnoozed && snoozedUntil && !isCompleted && !isArchived && (
-                <p className="font-medium text-sky-400 mt-0.5">
+                <p className="font-medium text-sky-400">
                   Snoozed: {formatDate(snoozedUntil)}
                 </p>
               )}

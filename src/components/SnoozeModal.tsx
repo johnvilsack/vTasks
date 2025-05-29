@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 
 interface SnoozeModalProps {
@@ -47,11 +46,13 @@ const SnoozeModal: React.FC<SnoozeModalProps> = ({ isOpen, onClose, onConfirmSno
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    if (!date || !time) {
-      alert("Please select a valid date and time.");
+    if (!date) { // Only date is strictly required
+      alert("Please select a valid date.");
       return;
     }
-    const selectedDateTime = new Date(`${date}T${time}:00`);
+    const effectiveTime = time || "00:00"; // Default time to 12 AM if empty
+    const selectedDateTime = new Date(`${date}T${effectiveTime}:00`); // Parsed as local time
+
     if (selectedDateTime <= new Date()) {
       alert("Snooze time must be in the future.");
       return;
