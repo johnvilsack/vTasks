@@ -5,6 +5,7 @@ if [[ -f "$FILE" ]]; then
     echo "Rebuilding vTasks..."
     ditto -xk ~/Desktop/vtasks.zip ~/Desktop/vtasks/
     sed -i '' '/<script type="importmap">/,/<\/script>/d' ~/Desktop/vtasks/index.html
+    sed -i '' '/<link rel="stylesheet" href="\/index.css">/d' ~/Desktop/vtasks/index.html
     rm -rf ~/Desktop/vtasks/.github
     cp -Rf ~/Desktop/vtasks/* ~/Documents/GitHub/vtasks/
     rm -rf ~/Desktop/vtasks
