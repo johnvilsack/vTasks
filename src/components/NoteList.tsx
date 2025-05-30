@@ -19,7 +19,6 @@ interface NoteListProps {
   onDropHandler: (targetId: string, e: React.DragEvent<HTMLDivElement>) => void;
   onDragEndHandler: (e: React.DragEvent<HTMLDivElement>) => void;
   existingProjects: string[];
-  animateWakeUpForIds: Set<string>;
 }
 
 const NoteList: React.FC<NoteListProps> = ({
@@ -38,7 +37,6 @@ const NoteList: React.FC<NoteListProps> = ({
   onDropHandler,
   onDragEndHandler,
   existingProjects,
-  animateWakeUpForIds,
 }) => {
   if (notes.length === 0) {
     return <p className="text-center text-[rgb(var(--text-placeholder))] py-10">No active notes.</p>;
@@ -65,7 +63,6 @@ const NoteList: React.FC<NoteListProps> = ({
           onDropHandler={onDropHandler}
           onDragEndHandler={onDragEndHandler}
           existingProjects={existingProjects}
-          animateNow={animateWakeUpForIds.has(note.id)}
         />
       ))}
     </div>

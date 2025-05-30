@@ -14,5 +14,5 @@ if [[ -f "$FILE" ]]; then
 else
     echo "Nothing to do. Restarting dev server..."
 fi
-kill-port 5173
-npm run dev &
+killport 5173
+npm run dev

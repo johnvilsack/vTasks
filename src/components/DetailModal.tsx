@@ -94,8 +94,6 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
     e.stopPropagation();
     if (onUnsnoozeItem) {
       onUnsnoozeItem(entry.id);
-      // No need to call onClose here, App.tsx handleUnsnoozeItem might update selectedEntryForDetail
-      // which will re-render the modal with updated info, or App.tsx may close it if appropriate.
     }
   };
   
@@ -129,14 +127,14 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                     </ActionIconButton>
                 )}
-                {onUnsnoozeItem && (isCurrentlySnoozed || entry.wokeUpAt) && !entry.isCompleted && !entry.isArchived && (
+                {onUnsnoozeItem && isCurrentlySnoozed && !entry.isCompleted && !entry.isArchived && (
                      <ActionIconButton onClick={handleUnsnooze} ariaLabel={`Activate ${entry.type.toLowerCase()} ${entry.title}`} title="Activate Now" className={`${actionIconColor} hover:text-green-400`}>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
                            <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L8.029 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" />
                         </svg>
                     </ActionIconButton>
                 )}
-                {!isCurrentlySnoozed && onOpenSnoozeModal && !entry.isCompleted && !entry.isArchived && !entry.wokeUpAt && ( 
+                {onOpenSnoozeModal && !isCurrentlySnoozed && !entry.isCompleted && !entry.isArchived && ( 
                     <ActionIconButton onClick={handleSnooze} ariaLabel={`Snooze ${entry.type.toLowerCase()} ${entry.title}`} title="Snooze" className={actionIconColor}>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -191,7 +189,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
             {isCurrentlySnoozed && entry.snoozedUntil && (
                 <DetailItem label="Snoozed Until" value={`${formatDate(entry.snoozedUntil)}`} textColorClass="text-sky-400" />
             )}
-            {entry.wokeUpAt && !isCurrentlySnoozed && (
+            {entry.wokeUpAt && !isCurrentlySnoozed && ( // WokeUpAt should only show if not currently snoozed.
                  <DetailItem label="Woke Up At" value={`${formatDate(entry.wokeUpAt)}`} textColorClass="text-emerald-400" />
             )}
         </div>

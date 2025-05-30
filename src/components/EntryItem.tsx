@@ -35,7 +35,6 @@ interface EntryItemProps {
   onDropHandler: (targetId: string, e: React.DragEvent<HTMLDivElement>) => void;
   onDragEndHandler: (e: React.DragEvent<HTMLDivElement>) => void;
   existingProjects: string[];
-  animateNow?: boolean; // For wakeup animation
 }
 
 const ActionButton: React.FC<{ onClick: (e: React.MouseEvent) => void; ariaLabel: string; title: string; children: React.ReactNode; className?: string }> = 
@@ -106,7 +105,6 @@ const EntryItem: React.FC<EntryItemProps> = ({
   onDropHandler,
   onDragEndHandler,
   existingProjects,
-  animateNow,
 }) => {
   const { id, title, details, type, createdAt, isCompleted, completedAt, dueDate, contact, url, isArchived, archivedAt, project, priority, snoozedUntil, wokeUpAt } = entry;
 
@@ -259,7 +257,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={handleLocalDrop}
-      className={`${cardBaseStyle} ${cardSpecificStyle} ${isCurrentlyBeingDragged ? 'dragging-item' : ''} ${isDragOver ? 'drag-over-target-indicator' : ''} ${(allowActions && !isEditingCurrentEntry) ? 'drag-handle' : 'cursor-default'} ${animateNow ? 'animate-wakeup-flash' : ''}`}
+      className={`${cardBaseStyle} ${cardSpecificStyle} ${isCurrentlyBeingDragged ? 'dragging-item' : ''} ${isDragOver ? 'drag-over-target-indicator' : ''} ${(allowActions && !isEditingCurrentEntry) ? 'drag-handle' : 'cursor-default'}`}
       aria-roledescription={(allowActions && !isEditingCurrentEntry) ? "Draggable item" : undefined}
       role="article" 
       tabIndex={0}
