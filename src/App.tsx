@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Entry, EntryType, TabView, PriorityLevel, ActiveFilters } from './types';
 import useLocalStorage from './hooks/useLocalStorage';
@@ -53,6 +50,16 @@ const App: React.FC = () => {
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
+  const [notificationPermissionState, setNotificationPermissionState] = useState<NotificationPermission>(Notification.permission);
+
+  useEffect(() => {
+    if (typeof Notification !== "undefined" && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        setNotificationPermissionState(permission);
+      });
+    }
+  }, []);
+
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -72,13 +79,24 @@ const App: React.FC = () => {
   // Periodically check for unsnoozing items
   useEffect(() => {
     const interval = setInterval(() => {
-      const now = new Date().getTime();
+      const now = new Date();
+      const nowTime = now.getTime();
+      const nowISO = now.toISOString();
       let changed = false;
+
       const updatedEntries = entries.map(entry => {
-        if (entry.snoozedUntil && new Date(entry.snoozedUntil).getTime() <= now) {
+        if (entry.snoozedUntil && new Date(entry.snoozedUntil).getTime() <= nowTime) {
           changed = true;
-          const { snoozedUntil: _, ...rest } = entry; // Remove snoozedUntil
-          return rest;
+          const { snoozedUntil: _, ...rest } = entry; 
+          const wokenEntry = { ...rest, wokeUpAt: nowISO };
+
+          if (notificationPermissionState === 'granted') {
+            new Notification('vTasks Wake Up!', {
+              body: `Item "${wokenEntry.title}" is now active.`,
+              icon: '/vite.svg' // Optional: Re-uses the favicon
+            });
+          }
+          return wokenEntry;
         }
         return entry;
       });
@@ -88,7 +106,7 @@ const App: React.FC = () => {
     }, 60000); // Check every minute
 
     return () => clearInterval(interval);
-  }, [entries, setEntries]);
+  }, [entries, setEntries, notificationPermissionState]);
 
 
   const handleOpenDetailModal = (entry: Entry) => {
@@ -135,13 +153,14 @@ const App: React.FC = () => {
     if (!taskForCompletionNotes) return;
     const completedAtTime = new Date().toISOString();
 
-    const { snoozedUntil: _snoozedRemoved, ...taskDetailsWithoutSnooze } = taskForCompletionNotes;
+    const { snoozedUntil: _snoozedRemoved, wokeUpAt: _wokeUpRemoved, ...taskDetailsRelevant } = taskForCompletionNotes;
 
     const updatedTask: Entry = {
-      ...taskDetailsWithoutSnooze,
+      ...taskDetailsRelevant,
       isCompleted: true,
       completedAt: completedAtTime,
       completionNotes: notes.trim() || undefined,
+      wokeUpAt: undefined, // Clear wokeUpAt
     };
 
     setEntries(prevEntries =>
@@ -173,17 +192,20 @@ const App: React.FC = () => {
     
     let updatedNote: Entry;
     if (isNowArchived) {
-        const { snoozedUntil: _snoozedRemoved, ...itemDetailsWithoutSnooze } = itemToArchive;
+        const { snoozedUntil: _snoozedRemoved, wokeUpAt: _wokeUpRemoved, ...itemDetailsRelevant } = itemToArchive;
         updatedNote = {
-            ...itemDetailsWithoutSnooze,
+            ...itemDetailsRelevant,
             isArchived: true,
             archivedAt: updatedArchivedTime,
+            wokeUpAt: undefined, // Clear wokeUpAt
         };
-    } else {
+    } else { // Unarchiving
+        const { wokeUpAt: _wokeUpRemoved, ...itemDetailsRelevant } = itemToArchive;
         updatedNote = {
-            ...itemToArchive,
+            ...itemDetailsRelevant,
             isArchived: false,
             archivedAt: undefined,
+            wokeUpAt: undefined, // Clear wokeUpAt
         };
     }
 
@@ -225,6 +247,7 @@ const App: React.FC = () => {
       priority: priority || PriorityLevel.Normal,
       completionNotes: undefined,
       snoozedUntil: undefined,
+      wokeUpAt: undefined,
     };
     setEntries(prevEntries => [newEntry, ...prevEntries]);
     if (type === EntryType.Task) setActiveTab(TabView.ActiveTasks);
@@ -240,19 +263,22 @@ const App: React.FC = () => {
         if (entry.id === id && entry.type === EntryType.Task) {
           const nowCompleted = !entry.isCompleted;
           if (nowCompleted) {
-            const { snoozedUntil: _snoozedRemoved, ...entryDetailsWithoutSnooze } = entry;
+            const { snoozedUntil: _snoozedRemoved, wokeUpAt: _wokeUpRemoved, ...entryDetailsRelevant } = entry;
             return {
-              ...entryDetailsWithoutSnooze,
+              ...entryDetailsRelevant,
               isCompleted: true,
               completedAt: new Date().toISOString(),
               completionNotes: notes ? notes : (entry.completionNotes ? entry.completionNotes : undefined),
+              wokeUpAt: undefined, // Clear wokeUpAt
             };
-          } else {
+          } else { // Marking as incomplete
+             const { wokeUpAt: _wokeUpRemoved, ...entryDetailsRelevant } = entry;
             return { 
-              ...entry, 
+              ...entryDetailsRelevant, 
               isCompleted: false, 
               completedAt: undefined,
               completionNotes: undefined,
+              wokeUpAt: undefined, // Clear wokeUpAt
             };
           }
         }
@@ -263,20 +289,22 @@ const App: React.FC = () => {
         setSelectedEntryForDetail(prev => {
           if (!prev || prev.type !== EntryType.Task) return null;
           const nowCompleted = !prev.isCompleted;
+           const { snoozedUntil: _snoozedRemoved, wokeUpAt: _wokeUpRemoved, ...prevDetailsRelevant } = prev;
           if (nowCompleted) {
-            const { snoozedUntil: _snoozedRemoved, ...prevDetailsWithoutSnooze } = prev;
             return {
-                ...prevDetailsWithoutSnooze,
+                ...prevDetailsRelevant,
                 isCompleted: true,
                 completedAt: new Date().toISOString(),
                 completionNotes: notes ? notes : (prev.completionNotes ? prev.completionNotes : undefined),
+                wokeUpAt: undefined,
             };
           } else {
             return {
-              ...prev, 
+              ...prevDetailsRelevant, 
               isCompleted: false, 
               completedAt: undefined,
               completionNotes: undefined,
+              wokeUpAt: undefined,
             };
           }
         });
@@ -319,6 +347,7 @@ const App: React.FC = () => {
               project: newProject?.trim() || undefined,
               priority: newPriority || PriorityLevel.Normal,
               snoozedUntil: newSnoozedUntil || undefined, 
+              wokeUpAt: undefined, // Clear wokeUpAt on any edit that involves snooze change or simply saving
             }
           : entry
       )
@@ -369,13 +398,20 @@ const App: React.FC = () => {
       const draggedEntry = entriesCopy[draggedIdx];
       const targetEntry = entriesCopy[targetIdx];
       
-      const isDraggedSnoozed = draggedEntry.snoozedUntil && new Date(draggedEntry.snoozedUntil).getTime() > new Date().getTime();
-      const isTargetSnoozed = targetEntry.snoozedUntil && new Date(targetEntry.snoozedUntil).getTime() > new Date().getTime();
+      const isDraggedSnoozed = !!draggedEntry.snoozedUntil && new Date(draggedEntry.snoozedUntil).getTime() > new Date().getTime();
+      const isTargetSnoozed = !!targetEntry.snoozedUntil && new Date(targetEntry.snoozedUntil).getTime() > new Date().getTime();
+      
+      // Also consider wokeUpAt status for grouping, if items that woke up shouldn't mix with never-snoozed or still-snoozed.
+      // For now, assuming wokeUpAt items are treated as active, non-snoozed.
+      const isDraggedWoken = !!draggedEntry.wokeUpAt && !isDraggedSnoozed;
+      const isTargetWoken = !!targetEntry.wokeUpAt && !isTargetSnoozed;
+
 
       if (draggedEntry.type !== targetEntry.type || 
           draggedEntry.isArchived !== targetEntry.isArchived ||
           (draggedEntry.type === EntryType.Task && draggedEntry.isCompleted !== targetEntry.isCompleted) ||
-          isDraggedSnoozed !== isTargetSnoozed
+          isDraggedSnoozed !== isTargetSnoozed ||
+          isDraggedWoken !== isTargetWoken // Prevent dragging woken items into non-woken groups if desired
           ) {
         return currentEntries; 
       }
@@ -430,7 +466,7 @@ const App: React.FC = () => {
     if (entries.length === 0) return;
     const jsonData = JSON.stringify(entries, null, 2);
     const blob = new Blob([jsonData], { type: 'application/json' });
-    triggerDownload(blob, getTimestampedFilename('vtasks-export', 'json')); // Updated base name
+    triggerDownload(blob, getTimestampedFilename('vtasks-export', 'json')); 
     closeExportOptionsModal();
   }, [entries, closeExportOptionsModal]);
   
@@ -449,7 +485,7 @@ const App: React.FC = () => {
   const CSV_HEADERS: (keyof Entry)[] = [
       'id', 'title', 'details', 'type', 'createdAt', 'isCompleted', 'completedAt',
       'completionNotes', 'dueDate', 'contact', 'url', 'isArchived', 'archivedAt',
-      'project', 'priority', 'snoozedUntil' 
+      'project', 'priority', 'snoozedUntil', 'wokeUpAt' 
   ];
 
   const convertToCSV = (data: Entry[]): string => {
@@ -469,7 +505,7 @@ const App: React.FC = () => {
     if (entries.length === 0) return;
     const csvData = convertToCSV(entries);
     const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-    triggerDownload(blob, getTimestampedFilename('vtasks-export', 'csv')); // Updated base name
+    triggerDownload(blob, getTimestampedFilename('vtasks-export', 'csv')); 
     closeExportOptionsModal();
   }, [entries, closeExportOptionsModal]);
 
@@ -506,6 +542,7 @@ const App: React.FC = () => {
       const parsedHeaders = parseCSVLine(headerLine).map(h => h.trim());
       
       const expectedHeadersSet = new Set(CSV_HEADERS);
+      // Update minExpectedHeaders if 'wokeUpAt' is considered essential or part of a base set
       const minExpectedHeaders = CSV_HEADERS.slice(0, CSV_HEADERS.indexOf('project')); 
 
       if (parsedHeaders.length < minExpectedHeaders.length || !minExpectedHeaders.every(h => parsedHeaders.includes(h as string))) {
@@ -551,6 +588,9 @@ const App: React.FC = () => {
                     (entry as any)[key] = PriorityLevel.Normal; 
                 }
                 break;
+            case 'wokeUpAt': // Ensure wokeUpAt is handled if present
+                 (entry as any)[key] = value || undefined;
+                 break;
             default:
               (entry as any)[key] = value; 
           }
@@ -561,6 +601,8 @@ const App: React.FC = () => {
             continue;
         }
         if (!entry.priority) entry.priority = PriorityLevel.Normal;
+        if (entry.wokeUpAt === '') entry.wokeUpAt = undefined;
+
 
         importedEntries.push(entry as Entry);
       }
@@ -586,6 +628,7 @@ const App: React.FC = () => {
                 project: item.project || undefined,
                 priority: item.priority || PriorityLevel.Normal,
                 snoozedUntil: item.snoozedUntil || undefined,
+                wokeUpAt: item.wokeUpAt || undefined,
             };
             acc.push(fullEntry);
         } else {
@@ -659,12 +702,12 @@ const App: React.FC = () => {
     setEntries(prevEntries =>
       prevEntries.map(e =>
         e.id === entryToSnooze.id
-          ? { ...e, snoozedUntil: snoozeUntilValue }
+          ? { ...e, snoozedUntil: snoozeUntilValue, wokeUpAt: undefined } // Clear wokeUpAt when snoozing
           : e
       )
     );
     if (selectedEntryForDetail?.id === entryToSnooze.id) {
-      setSelectedEntryForDetail(prev => prev ? { ...prev, snoozedUntil: snoozeUntilValue } : null);
+      setSelectedEntryForDetail(prev => prev ? { ...prev, snoozedUntil: snoozeUntilValue, wokeUpAt: undefined } : null);
     }
     handleCloseSnoozeModal();
   }, [entryToSnooze, setEntries, selectedEntryForDetail]);
@@ -673,7 +716,7 @@ const App: React.FC = () => {
     setEntries(prevEntries =>
       prevEntries.map(entry => {
         if (entry.id === itemId) {
-          const { snoozedUntil: _, ...rest } = entry;
+          const { snoozedUntil: _, wokeUpAt: __, ...rest } = entry; // Clear snoozedUntil and wokeUpAt
           return rest;
         }
         return entry;
@@ -682,29 +725,27 @@ const App: React.FC = () => {
     if (selectedEntryForDetail?.id === itemId) {
       setSelectedEntryForDetail(prev => {
         if (!prev) return null;
-        const { snoozedUntil: _, ...rest } = prev;
+        const { snoozedUntil: _, wokeUpAt: __, ...rest } = prev;
         return rest;
       });
     }
   }, [setEntries, selectedEntryForDetail]);
 
 
-  const nowTime = useMemo(() => new Date().getTime(), [entries, viewMode, activeTab, activeFilters]); 
+  const nowTimeForFiltering = useMemo(() => new Date().getTime(), [entries, viewMode, activeTab, activeFilters]); 
 
-  // Unfiltered active items
   const baseActiveTasks = useMemo(() => entries.filter(entry => 
     entry.type === EntryType.Task && 
     !entry.isCompleted && 
-    (!entry.snoozedUntil || new Date(entry.snoozedUntil).getTime() <= nowTime)
-  ), [entries, nowTime]);
+    (!entry.snoozedUntil || new Date(entry.snoozedUntil).getTime() <= nowTimeForFiltering)
+  ), [entries, nowTimeForFiltering]);
 
   const baseActiveNotes = useMemo(() => entries.filter(entry => 
     entry.type === EntryType.Note && 
     !entry.isArchived &&
-    (!entry.snoozedUntil || new Date(entry.snoozedUntil).getTime() <= nowTime)
-  ), [entries, nowTime]);
-
-  // Filtered active items
+    (!entry.snoozedUntil || new Date(entry.snoozedUntil).getTime() <= nowTimeForFiltering)
+  ), [entries, nowTimeForFiltering]);
+  
   const activeTasks = useMemo(() => baseActiveTasks.filter(task => {
     const projectMatch = !activeFilters.project || task.project === activeFilters.project;
     const priorityMatch = !activeFilters.priority || task.priority === activeFilters.priority;
@@ -725,14 +766,13 @@ const App: React.FC = () => {
     .sort((a,b) => new Date(b.archivedAt || 0).getTime() - new Date(a.archivedAt || 0).getTime()), [entries]);
 
   const snoozedEntries = useMemo(() => entries.filter(entry => 
-    entry.snoozedUntil && new Date(entry.snoozedUntil).getTime() > nowTime
-  ).sort((a,b) => new Date(a.snoozedUntil!).getTime() - new Date(b.snoozedUntil!).getTime()), [entries, nowTime]);
+    entry.snoozedUntil && new Date(entry.snoozedUntil).getTime() > nowTimeForFiltering 
+  ).sort((a,b) => new Date(a.snoozedUntil!).getTime() - new Date(b.snoozedUntil!).getTime()), [entries, nowTimeForFiltering]);
 
-  // For Project Autocomplete in InputForm & EntryItem
   const existingProjectsForAutocomplete = useMemo(() => {
     const projects = new Set<string>();
     entries.forEach(entry => {
-      const isSnoozed = entry.snoozedUntil && new Date(entry.snoozedUntil).getTime() > nowTime;
+      const isSnoozed = entry.snoozedUntil && new Date(entry.snoozedUntil).getTime() > nowTimeForFiltering;
       const isActiveTask = entry.type === EntryType.Task && !entry.isCompleted;
       const isActiveNote = entry.type === EntryType.Note && !entry.isArchived;
 
@@ -741,9 +781,8 @@ const App: React.FC = () => {
       }
     });
     return Array.from(projects).sort();
-  }, [entries, nowTime]);
-
-  // For Filter Dropdown Options (based on current tab's unfiltered content)
+  }, [entries, nowTimeForFiltering]);
+  
   const projectsInView = useMemo(() => {
     const sourceList = activeTab === TabView.ActiveTasks ? baseActiveTasks : baseActiveNotes;
     return Array.from(new Set(sourceList.map(e => e.project).filter((p): p is string => !!p))).sort();
@@ -830,8 +869,8 @@ const App: React.FC = () => {
                 <Tabs 
                   activeTab={activeTab} 
                   onTabChange={tab => { handleCancelEdit(); setActiveTab(tab); }} 
-                  activeTaskCount={activeTasks.length} // Show filtered count
-                  noteCount={activeNotes.length} // Show filtered count
+                  activeTaskCount={activeTasks.length} 
+                  noteCount={activeNotes.length} 
                   activeFilters={activeFilters}
                   onSetFilter={handleSetFilter}
                   projectsInView={projectsInView}

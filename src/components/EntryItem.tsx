@@ -106,7 +106,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
   onDragEndHandler,
   existingProjects,
 }) => {
-  const { id, title, details, type, createdAt, isCompleted, completedAt, dueDate, contact, url, isArchived, archivedAt, project, priority, snoozedUntil } = entry;
+  const { id, title, details, type, createdAt, isCompleted, completedAt, dueDate, contact, url, isArchived, archivedAt, project, priority, snoozedUntil, wokeUpAt } = entry;
 
   const isCurrentlySnoozed = snoozedUntil && new Date(snoozedUntil) > new Date();
   const isEditingCurrentEntry = (type === EntryType.Note && isEditingNoteProp && editingTaskId !== id) || 
@@ -135,8 +135,11 @@ const EntryItem: React.FC<EntryItemProps> = ({
       setEditUrl(url || '');
       setEditProject(project || '');
       setEditPriority(priority || PriorityLevel.Normal);
-      setEditSnoozedUntilDate(snoozedUntil ? new Date(snoozedUntil).toISOString().split('T')[0] : '');
-      setEditSnoozedUntilTime(snoozedUntil ? new Date(snoozedUntil).toTimeString().substring(0,5) : '');
+      // When editing, if it was snoozed (or woke up), use the snoozedUntil for editing.
+      // wokeUpAt is a display-only status for non-editing mode.
+      const snoozeTimeToEdit = snoozedUntil || wokeUpAt; // Prefer snoozedUntil if active, fallback to wokeUpAt for date context
+      setEditSnoozedUntilDate(snoozeTimeToEdit ? new Date(snoozeTimeToEdit).toISOString().split('T')[0] : '');
+      setEditSnoozedUntilTime(snoozeTimeToEdit ? new Date(snoozeTimeToEdit).toTimeString().substring(0,5) : '');
       
       if (detailsTextareaRef.current) {
         detailsTextareaRef.current.focus();
@@ -145,7 +148,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
         detailsTextareaRef.current.setSelectionRange(len, len);
       }
     }
-  }, [isEditingCurrentEntry, title, details, dueDate, contact, url, project, priority, snoozedUntil]);
+  }, [isEditingCurrentEntry, title, details, dueDate, contact, url, project, priority, snoozedUntil, wokeUpAt]);
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -302,7 +305,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
             <label htmlFor={`edit-url-${id}`} className={labelClass}>URL</label>
             <input id={`edit-url-${id}`} type="url" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} className={inputBaseClass} placeholder="Edit URL..." aria-label="Edit URL" />
           </div>
-           {isCurrentlySnoozed || type === EntryType.Task || type === EntryType.Note ? ( 
+           {(type === EntryType.Task || type === EntryType.Note) ? ( // Snooze applicable to both types
             <div className="grid grid-cols-2 gap-x-3 items-end">
                 <div className="relative">
                     <label htmlFor={`edit-snooze-date-${id}`} className={labelClass}>Snooze Until Date (Optional)</label>
@@ -350,13 +353,12 @@ const EntryItem: React.FC<EntryItemProps> = ({
             {allowActions && isCurrentlySnoozed && onUnsnoozeItem && (
               <ActionButton onClick={handleUnsnoozeClick} ariaLabel={`Unsnooze ${type.toLowerCase()} ${title}`} title="Unsnooze" className={`${actionIconColor} hover:text-green-400`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  {/* Simplified Unsnooze Icon (Bell with slash) */}
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0M3.172 5.172a4.001 4.001 0 015.656 0L12 8.343l3.172-3.171a4.001 4.001 0 115.656 5.656L12 16.828l-3.172-3.171a4.001 4.001 0 010-5.656z" />
                   <line x1="4" y1="4" x2="20" y2="20" strokeWidth="1.5" />
                 </svg>
               </ActionButton>
             )}
-            {allowActions && onOpenSnoozeModal && !isCompleted && !isArchived && !isCurrentlySnoozed && ( 
+            {allowActions && onOpenSnoozeModal && !isCompleted && !isArchived && !isCurrentlySnoozed && !wokeUpAt && ( 
               <ActionButton onClick={(e) => { e.stopPropagation(); onOpenSnoozeModal(entry);}} ariaLabel={`Snooze ${type.toLowerCase()} ${title}`} title="Snooze" className={actionIconColor}>
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -414,9 +416,14 @@ const EntryItem: React.FC<EntryItemProps> = ({
                   Due: {formatDueDate(dueDate)}
                 </p>
               )}
-              {isCurrentlySnoozed && snoozedUntil && !isCompleted && !isArchived && (
+              {wokeUpAt && !isCurrentlySnoozed && !isCompleted && !isArchived && (
+                 <p className="font-medium text-emerald-400"> {/* Changed color for wokeUpAt */}
+                    Woke up: {formatDate(wokeUpAt)}
+                 </p>
+              )}
+              {isCurrentlySnoozed && !wokeUpAt && !isCompleted && !isArchived && (
                 <p className="font-medium text-sky-400">
-                  Snoozed: {formatDate(snoozedUntil)}
+                  Snoozed: {formatDate(snoozedUntil!)}
                 </p>
               )}
             </div>
@@ -438,11 +445,17 @@ const EntryItem: React.FC<EntryItemProps> = ({
              </div>
           )}
 
-
            {!allowActions && isCurrentlySnoozed && snoozedUntil && !isCompleted && !isArchived && ( 
             <div className="text-right mt-1">
               <p className="text-xs font-medium text-sky-400">
                 Snoozed until: {formatDate(snoozedUntil)}
+              </p>
+            </div>
+          )}
+           {!allowActions && wokeUpAt && !isCurrentlySnoozed && !isCompleted && !isArchived && ( 
+            <div className="text-right mt-1">
+              <p className="text-xs font-medium text-emerald-400">
+                Woke up: {formatDate(wokeUpAt)}
               </p>
             </div>
           )}

@@ -1,6 +1,4 @@
 
-
-
 import React from 'react';
 import { Entry, EntryType, PriorityLevel } from '../types'; // Added PriorityLevel
 import { formatDate, formatDueDate, formatArchivedAtDate } from '../utils/dateUtils';
@@ -14,7 +12,7 @@ interface DetailModalProps {
   onStartEdit?: (id: string, type: EntryType) => void; 
   onOpenCompletionNotesModal?: (task: Entry) => void; 
   onOpenSnoozeModal?: (entry: Entry) => void;
-  onUnsnoozeItem?: (itemId: string) => void; // Added
+  onUnsnoozeItem?: (itemId: string) => void; 
 }
 
 const ActionIconButton: React.FC<{ onClick: (e: React.MouseEvent) => void; ariaLabel: string; title: string; children: React.ReactNode; className?: string }> = 
@@ -32,13 +30,14 @@ const ActionIconButton: React.FC<{ onClick: (e: React.MouseEvent) => void; ariaL
 const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleComplete, onDeleteRequest, onArchiveRequest, onStartEdit, onOpenCompletionNotesModal, onOpenSnoozeModal, onUnsnoozeItem }) => {
   if (!entry) return null;
 
-  const DetailItem: React.FC<{ label: string; value?: string | PriorityLevel | null, isLink?: boolean, inputType?: 'date' }> = ({ label, value, isLink, inputType }) => {
+  const DetailItem: React.FC<{ label: string; value?: string | PriorityLevel | null, isLink?: boolean, inputType?: 'date', textColorClass?: string }> = ({ label, value, isLink, inputType, textColorClass }) => {
     if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) return null;
     
     let displayValue = value;
     if (label === "Priority" && typeof value === 'string' && Object.values(PriorityLevel).includes(value as PriorityLevel)) {
         displayValue = value.charAt(0) + value.slice(1).toLowerCase();
     }
+    const finalTextColorClass = textColorClass || 'text-[rgb(var(--text-primary))]';
 
     return (
       <div className="mb-3">
@@ -54,10 +53,9 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
             {displayValue}
           </a>
         ) : inputType === 'date' && typeof displayValue === 'string' ? (
-            // This is just for display, not an actual input. For actual input, use InputForm logic.
-            <p className="text-sm text-[rgb(var(--text-primary))] break-words whitespace-pre-wrap dark-input-icons">{String(displayValue)}</p>
+            <p className={`text-sm ${finalTextColorClass} break-words whitespace-pre-wrap dark-input-icons`}>{String(displayValue)}</p>
         ) : (
-          <p className="text-sm text-[rgb(var(--text-primary))] break-words whitespace-pre-wrap">{String(displayValue)}</p>
+          <p className={`text-sm ${finalTextColorClass} break-words whitespace-pre-wrap`}>{String(displayValue)}</p>
         )}
       </div>
     );
@@ -96,7 +94,6 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
     e.stopPropagation();
     if (onUnsnoozeItem) {
       onUnsnoozeItem(entry.id);
-      // Optionally close modal or update view, App.tsx handles state update
       onClose(); 
     }
   };
@@ -139,7 +136,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
                         </svg>
                     </ActionIconButton>
                 )}
-                {!isCurrentlySnoozed && onOpenSnoozeModal && !entry.isCompleted && !entry.isArchived && ( 
+                {!isCurrentlySnoozed && onOpenSnoozeModal && !entry.isCompleted && !entry.isArchived && !entry.wokeUpAt && ( 
                     <ActionIconButton onClick={handleSnooze} ariaLabel={`Snooze ${entry.type.toLowerCase()} ${entry.title}`} title="Snooze" className={actionIconColor}>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -192,7 +189,10 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
             <DetailItem label="Archived At" value={formatArchivedAtDate(entry.archivedAt)} />
             )}
             {isCurrentlySnoozed && entry.snoozedUntil && (
-                <DetailItem label="Snoozed Until" value={`${formatDate(entry.snoozedUntil)}`} />
+                <DetailItem label="Snoozed Until" value={`${formatDate(entry.snoozedUntil)}`} textColorClass="text-sky-400" />
+            )}
+            {entry.wokeUpAt && !isCurrentlySnoozed && (
+                 <DetailItem label="Woke Up At" value={`${formatDate(entry.wokeUpAt)}`} textColorClass="text-emerald-400" />
             )}
         </div>
         

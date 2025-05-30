@@ -29,6 +29,7 @@ export interface Entry {
   project?: string; // Optional project name
   priority?: PriorityLevel; // Optional priority level
   snoozedUntil?: string; // ISO Date string, if item is snoozed
+  wokeUpAt?: string; // ISO Date string, when item automatically unsnoozed
 }
 
 export enum TabView {
