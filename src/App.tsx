@@ -50,15 +50,23 @@ const App: React.FC = () => {
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
-  const [notificationPermissionState, setNotificationPermissionState] = useState<NotificationPermission>(Notification.permission);
+  const [notificationPermissionState, setNotificationPermissionState] = useState<NotificationPermission>('default');
   const [animateWakeUpForIds, setAnimateWakeUpForIds] = useState<Set<string>>(new Set());
 
 
   useEffect(() => {
-    if (typeof Notification !== "undefined" && Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        setNotificationPermissionState(permission);
-      });
+    if (typeof Notification !== "undefined") {
+        console.log("Initial Notification.permission:", Notification.permission);
+        if (Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+                console.log("Notification.requestPermission result:", permission);
+                setNotificationPermissionState(permission);
+            });
+        } else {
+            setNotificationPermissionState(Notification.permission);
+        }
+    } else {
+        console.log("Notifications API not supported.");
     }
   }, []);
 
@@ -85,21 +93,22 @@ const App: React.FC = () => {
       const nowTime = now.getTime();
       const nowISO = now.toISOString();
       let changed = false;
-      const originalEntriesSnapshot = [...entries]; // Snapshot before potential modifications
+      const originalEntriesSnapshot = [...entries]; 
 
       const updatedEntries = entries.map(entry => {
         if (entry.snoozedUntil && new Date(entry.snoozedUntil).getTime() <= nowTime) {
           changed = true;
           const { snoozedUntil: _snoozed, ...rest } = entry; 
-          // Explicitly clear snoozedUntil and set wokeUpAt
           const wokenEntry = { ...rest, wokeUpAt: nowISO, snoozedUntil: undefined };
-
 
           if (notificationPermissionState === 'granted') {
             new Notification('vTasks Wake Up!', {
               body: `Item "${wokenEntry.title}" is now active.`,
               icon: '/vite.svg' 
             });
+            console.log(`Notification sent for ${wokenEntry.title}`);
+          } else {
+            console.log(`Notification permission not granted for ${wokenEntry.title}. State: ${notificationPermissionState}`);
           }
           return wokenEntry;
         }
@@ -122,11 +131,11 @@ const App: React.FC = () => {
                     newIdsToAnimate.forEach(id => nextAnimatingIds.delete(id));
                     return nextAnimatingIds;
                 });
-            }, 2000); // Animation duration (1.5s) + buffer (0.5s)
+            }, 2000); 
         }
         setEntries(updatedEntries);
       }
-    }, 60000); // Check every minute
+    }, 60000); 
 
     return () => clearInterval(interval);
   }, [entries, setEntries, notificationPermissionState]);
@@ -183,8 +192,8 @@ const App: React.FC = () => {
       isCompleted: true,
       completedAt: completedAtTime,
       completionNotes: notes.trim() || undefined,
-      wokeUpAt: undefined, // Clear wokeUpAt
-      snoozedUntil: undefined, // Ensure snoozedUntil is cleared
+      wokeUpAt: undefined, 
+      snoozedUntil: undefined, 
     };
 
     setEntries(prevEntries =>
@@ -224,14 +233,13 @@ const App: React.FC = () => {
             wokeUpAt: undefined, 
             snoozedUntil: undefined, 
         };
-    } else { // Unarchiving
+    } else { 
         const { wokeUpAt: _wokeUpRemoved, ...itemDetailsRelevant } = itemToArchive;
         updatedNote = {
             ...itemDetailsRelevant,
             isArchived: false,
             archivedAt: undefined,
             wokeUpAt: undefined, 
-            // snoozedUntil remains as is unless explicitly changed elsewhere for unarchiving
         };
     }
 
@@ -298,7 +306,7 @@ const App: React.FC = () => {
               wokeUpAt: undefined, 
               snoozedUntil: undefined,
             };
-          } else { // Marking as incomplete
+          } else { 
              const { wokeUpAt: _wokeUpRemoved, ...entryDetailsRelevant } = entry;
             return { 
               ...entryDetailsRelevant, 
@@ -306,7 +314,6 @@ const App: React.FC = () => {
               completedAt: undefined,
               completionNotes: undefined,
               wokeUpAt: undefined, 
-              // snoozedUntil remains as is unless explicitly changed elsewhere
             };
           }
         }
@@ -376,7 +383,7 @@ const App: React.FC = () => {
               project: newProject?.trim() || undefined,
               priority: newPriority || PriorityLevel.Normal,
               snoozedUntil: newSnoozedUntil || undefined, 
-              wokeUpAt: newSnoozedUntil ? undefined : entry.wokeUpAt, // Clear wokeUpAt if re-snoozing
+              wokeUpAt: newSnoozedUntil ? undefined : entry.wokeUpAt, 
             }
           : entry
       )
@@ -739,20 +746,49 @@ const App: React.FC = () => {
   }, [entryToSnooze, setEntries, selectedEntryForDetail]);
 
   const handleUnsnoozeItem = useCallback((itemId: string) => {
+    const nowISO = new Date().toISOString();
+    let entryWasSnoozedAndTriggeredAnimation = false;
+  
     setEntries(prevEntries =>
       prevEntries.map(entry => {
         if (entry.id === itemId) {
-          const { snoozedUntil: _, wokeUpAt: __, ...rest } = entry; 
-          return { ...rest, snoozedUntil: undefined, wokeUpAt: undefined }; // Ensure both are cleared
+          let newWokeUpAt: string | undefined = entry.wokeUpAt; // Preserve existing wokeUpAt if not previously snoozed
+          if (entry.snoozedUntil) { // If it was snoozed (even if in the past)
+            newWokeUpAt = nowISO;
+            entryWasSnoozedAndTriggeredAnimation = true;
+          } else { // If it was not snoozed, clicking unsnooze should clear wokeUpAt
+            newWokeUpAt = undefined;
+          }
+          
+          const { snoozedUntil: _snoozed, wokeUpAt: _currentWokeUp, ...rest } = entry;
+          return { ...rest, snoozedUntil: undefined, wokeUpAt: newWokeUpAt };
         }
         return entry;
       })
     );
+  
+    if (entryWasSnoozedAndTriggeredAnimation) {
+      setAnimateWakeUpForIds(prev => new Set([...prev, itemId]));
+      setTimeout(() => {
+          setAnimateWakeUpForIds(currentAnimatingIds => {
+              const nextAnimatingIds = new Set(currentAnimatingIds);
+              nextAnimatingIds.delete(itemId);
+              return nextAnimatingIds;
+          });
+      }, 2000); // Animation duration (1.5s) + buffer (0.5s)
+    }
+  
     if (selectedEntryForDetail?.id === itemId) {
       setSelectedEntryForDetail(prev => {
         if (!prev) return null;
-        const { snoozedUntil: _, wokeUpAt: __, ...rest } = prev;
-        return { ...rest, snoozedUntil: undefined, wokeUpAt: undefined };
+        let newWokeUpAtForDetail: string | undefined = prev.wokeUpAt;
+        if (prev.snoozedUntil) {
+            newWokeUpAtForDetail = nowISO;
+        } else {
+            newWokeUpAtForDetail = undefined;
+        }
+        const { snoozedUntil: _snoozed, wokeUpAt: _currentWokeUp, ...rest } = prev;
+        return { ...rest, snoozedUntil: undefined, wokeUpAt: newWokeUpAtForDetail };
       });
     }
   }, [setEntries, selectedEntryForDetail]);

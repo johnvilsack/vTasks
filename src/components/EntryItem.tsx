@@ -350,11 +350,10 @@ const EntryItem: React.FC<EntryItemProps> = ({
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
               </ActionButton>
             )}
-            {allowActions && isCurrentlySnoozed && onUnsnoozeItem && (
-              <ActionButton onClick={handleUnsnoozeClick} ariaLabel={`Unsnooze ${type.toLowerCase()} ${title}`} title="Unsnooze" className={`${actionIconColor} hover:text-green-400`}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0M3.172 5.172a4.001 4.001 0 015.656 0L12 8.343l3.172-3.171a4.001 4.001 0 115.656 5.656L12 16.828l-3.172-3.171a4.001 4.001 0 010-5.656z" />
-                  <line x1="4" y1="4" x2="20" y2="20" strokeWidth="1.5" />
+            {allowActions && onUnsnoozeItem && isCurrentlySnoozed && (
+              <ActionButton onClick={handleUnsnoozeClick} ariaLabel={`Activate ${type.toLowerCase()} ${title}`} title="Activate Now" className={`${actionIconColor} hover:text-green-400`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L8.029 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" />
                 </svg>
               </ActionButton>
             )}
@@ -423,7 +422,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
               )}
               {isCurrentlySnoozed && !wokeUpAt && !isCompleted && !isArchived && (
                 <p className="font-medium text-sky-400">
-                  Snoozed: {formatDate(snoozedUntil!)}
+                  Snoozed Until: {formatDate(snoozedUntil!)}
                 </p>
               )}
             </div>
@@ -448,7 +447,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
            {!allowActions && isCurrentlySnoozed && snoozedUntil && !isCompleted && !isArchived && ( 
             <div className="text-right mt-1">
               <p className="text-xs font-medium text-sky-400">
-                Snoozed until: {formatDate(snoozedUntil)}
+                Snoozed Until: {formatDate(snoozedUntil)}
               </p>
             </div>
           )}

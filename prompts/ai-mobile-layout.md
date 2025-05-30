@@ -13,7 +13,7 @@
 *   **Responsive & Adaptive:** Layouts should adapt gracefully to various mobile screen sizes, prioritizing content and ease of use.
 *   **Performance:** Lightweight and responsive interactions.
 *   **Notifications:** Support for desktop/system notifications when items unsnooze.
-*   **Visual Feedback:** Brief animation on item cards when they auto-unsnooze.
+*   **Visual Feedback:** Brief animation on item cards when they unsnooze (auto or manual from snoozed state).
 
 ## 2. Global Elements (Mobile Context)
 
@@ -47,7 +47,7 @@ Controls content: `'main'`, `'completed'`, `'archived'`, `'snoozed'`.
 ### 3.3. Notifications & Animations
 *   Application requests notification permission.
 *   System notification on auto-unsnooze (if permitted).
-*   `EntryItem` cards briefly flash their background (`animate-wakeup-flash` class) when they auto-unsnooze.
+*   `EntryItem` cards briefly flash their background (`animate-wakeup-flash` class) when they unsnooze (auto or manual from a snoozed state).
 
 ## 4. Input Form (`InputForm.tsx`) - Mobile Layout
 
@@ -68,7 +68,7 @@ Card-like container.
 
 ### 5.2. Tab Content (`ActiveTaskList.tsx`, `NoteList.tsx`)
 *   Scrollable list of `EntryItem` cards. Empty state message.
-*   Cards for newly woken items will have a brief background flash animation.
+*   Cards for newly woken items (from auto or manual unsnooze of snoozed item) will have a brief background flash animation.
 
 ### 5.3. Navigation Buttons (to other `viewMode`s)
 *   Bottom of main view card. Full width, stacked vertically if multiple. Show counts.
@@ -77,18 +77,18 @@ Card-like container.
 
 ### 6.1. Card Layout & Interaction
 *   Full width, padding. Rounded, shadow, priority border.
-*   **Animation:** Card background briefly animates (`animate-wakeup-flash`) if `animateNow` prop is true (triggered by auto-unsnooze).
+*   **Animation:** Card background briefly animates (`animate-wakeup-flash`) if `animateNow` prop is true (triggered by unsnooze from a snoozed state).
 *   Main tap opens `DetailModal`. Draggable in active lists.
 
 ### 6.2. Content Display (Non-Editing State)
 *   Vertical flow. Task Checkbox (left of title). Title. Project & Contact info.
-*   **Dates**: Due Date, Snoozed Date (if `snoozedUntil` future), Woke Up Date (if `wokeUpAt` set, distinct emerald color). Completed/Archived At. Stacked if necessary.
+*   **Dates**: Due Date, "Snoozed Until:" (if `snoozedUntil` future), "Woke up:" (if `wokeUpAt` set, distinct emerald color). Completed/Archived At. Stacked if necessary.
 
 ### 6.3. Action Icons (Top-Right Corner)
 *   Horizontal row. Adequate tap spacing.
 *   **Icons (conditional):** URL, Edit.
-    *   **Unsnooze Icon**: For snoozed items. Clears `snoozedUntil` and `wokeUpAt`.
-    *   **Snooze Icon**: For active items (non-snoozed, including those with `wokeUpAt`). Opens `SnoozeModal`. Hidden if actively snoozed.
+    *   **Activate Icon (Play style)**: For actively snoozed items. Activates item, clears `snoozedUntil`, sets `wokeUpAt`.
+    *   **Snooze Icon (Clock style)**: For active items (non-snoozed, including those with `wokeUpAt`). Opens `SnoozeModal`. Hidden if actively snoozed.
     *   Archive, Delete.
 
 ### 6.4. Inline Editing Mode
@@ -112,8 +112,10 @@ Card-like container.
 ## 8. Modal Interactions - Mobile Layout & Functionality
 
 ### 8.1. Detail Modal (`DetailModal.tsx`)
-*   **Header:** Title (left), Action Icons (Edit, Snooze/Unsnooze, Archive/Unarchive, Delete) and Close X (right). Snooze icon shown if item can be snoozed (including woken items).
-*   **Body (Scrollable):** Vertical "Label: Value" pairs. Woke Up At shown with distinct style.
+*   **Header:** Title (left), Action Icons (Edit, Snooze/Activate, Archive/Unarchive, Delete) and Close X (right).
+    *   **Snooze Icon (Clock style)** shown if item is active and can be snoozed (including items that have `wokeUpAt` set but are not currently snoozed).
+    *   **Activate Icon (Play style)** shown if item is currently snoozed (`isCurrentlySnoozed`). Clicking it sets `wokeUpAt`. Also, if an item has `wokeUpAt` set (is not currently snoozed), this icon's action (if available through some logic path, though DetailModal primarily relies on EntryItem's state) would clear `wokeUpAt`.
+*   **Body (Scrollable):** Vertical "Label: Value" pairs. "Woke Up At" shown with distinct style. "Snoozed Until:" label used.
 *   **Footer (Tasks):** "Mark as Complete"/"Mark as Incomplete" button.
 
 ### 8.2. Confirmation Modals

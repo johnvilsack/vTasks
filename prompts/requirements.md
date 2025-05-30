@@ -3,7 +3,7 @@
 
 ## 1. Overview
 
-The vTasks application is a web-based tool designed for lightweight task management and note-taking. It allows users to create, view, edit, complete, archive (notes), snooze, and delete tasks and notes. The application features a **single, exclusive dark theme**. Key functionalities include drag-and-drop reordering for active items, inline editing, modal dialogs, data filtering, data import/export, persistence of all data locally in the user's browser via `localStorage`, desktop notifications for items coming off snooze, and a visual flash animation for newly woken items.
+The vTasks application is a web-based tool designed for lightweight task management and note-taking. It allows users to create, view, edit, complete, archive (notes), snooze, and delete tasks and notes. The application features a **single, exclusive dark theme**. Key functionalities include drag-and-drop reordering for active items, inline editing, modal dialogs, data filtering, data import/export, persistence of all data locally in the user's browser via `localStorage`, desktop notifications for items coming off snooze, and a visual flash animation for newly woken items (both auto and manual unsnooze of previously snoozed items).
 
 ## 2. Core Data Structures
 
@@ -39,8 +39,8 @@ export interface Entry {
   archivedAt?: string; // ISO Date string, timestamp of archiving (for notes)
   project?: string; // Optional project name
   priority?: PriorityLevel; // Optional priority level. Default: Normal.
-  snoozedUntil?: string; // Optional ISO Date string (full date-time), if item is snoozed. This is cleared when an item auto-unsnoozes.
-  wokeUpAt?: string; // Optional ISO Date string, when item automatically unsnoozed.
+  snoozedUntil?: string; // Optional ISO Date string (full date-time), if item is snoozed. This is cleared when an item auto-unsnoozes or is manually unsnoozed.
+  wokeUpAt?: string; // Optional ISO Date string, set when item automatically unsnoozes or is manually unsnoozed from a snoozed state.
 }
 ```
 
@@ -71,7 +71,7 @@ export interface ActiveFilters {
 *   **Layout**: Responsive.
 *   **Framework**: Tailwind CSS. Custom CSS for theme, scrollbars, animations.
 *   **Animations**:
-    *   `animate-wakeup-flash`: A CSS class using keyframes (`@keyframes wakeupFlash`) to briefly change the background color of an `EntryItem` card when it auto-unsnoozes.
+    *   `animate-wakeup-flash`: A CSS class using keyframes (`@keyframes wakeupFlash`) to briefly change the background color of an `EntryItem` card when it unsnoozes (auto or manual from a snoozed state).
 
 ## 4. Main Application Layout & Views (`src/App.tsx`)
 
@@ -86,31 +86,28 @@ Managed by `viewMode` state (`'main'`, `'completed'`, `'archived'`, `'snoozed'`)
 
 *   **Main View (`viewMode === 'main'`)**:
     *   **Tabs & Filters**: "Active Tasks", "Notes" tabs with counts. Filter button for Project/Priority dropdown.
-    *   **Tab Content**: `ActiveTaskList.tsx` or `NoteList.tsx`. Items that auto-unsnooze will trigger a brief background flash animation on their card.
+    *   **Tab Content**: `ActiveTaskList.tsx` or `NoteList.tsx`. Items that unsnooze (auto or manual from snoozed state) will trigger a brief background flash animation on their card.
     *   **Navigation Buttons**: "View Snoozed Items", "View Completed Tasks", "View Archived Notes".
 *   **Snoozed Items View (`viewMode === 'snoozed'`)**: Lists items with future `snoozedUntil`.
 *   **Completed Tasks View (`viewMode === 'completed'`)**: Grouped by completion week.
 *   **Archived Notes View (`viewMode === 'archived'`)**: Sorted by `archivedAt`.
-
-### 4.4. Footer
-*   "Import Data", "Export All Data" buttons. Copyright.
 
 ## 5. Entry Item (`src/components/EntryItem.tsx`)
 
 Displays a single task or note card.
 
 ### 5.1. General Display & Interaction
-*   Appearance: Rounded, shadow, priority border. Card background briefly animates (`animate-wakeup-flash`) if `animateNow` prop is true (triggered by auto-unsnooze).
+*   Appearance: Rounded, shadow, priority border. Card background briefly animates (`animate-wakeup-flash`) if `animateNow` prop is true (triggered by unsnooze from snoozed state).
 *   Click Action: Opens `DetailModal`. Drag-and-Drop for active items.
 
 ### 5.2. Content (Non-Editing State)
 *   Title, Task Checkbox, Project & Contact.
-*   **Dates**: Due Date, Snoozed Date (if `snoozedUntil` is future), Woke Up Date (if `wokeUpAt` is set, distinct emerald color). Completed/Archived At dates.
+*   **Dates**: Due Date, "Snoozed Until:" (if `snoozedUntil` is future), "Woke up:" (if `wokeUpAt` is set, distinct emerald color). Completed/Archived At dates.
 
 ### 5.3. Action Icons (Top-Right, conditional)
 *   URL, Edit.
-*   **Unsnooze Icon**: For snoozed items. Clears `snoozedUntil` and `wokeUpAt`.
-*   **Snooze Icon**: For active items (including those with `wokeUpAt`). Opens `SnoozeModal`. Hidden if `isCurrentlySnoozed`.
+*   **Activate Icon (Play style)**: For actively snoozed items (`isCurrentlySnoozed` is true). Clicking it activates the item, clears `snoozedUntil`, and sets `wokeUpAt`.
+*   **Snooze Icon (Clock style)**: For active items (including those with `wokeUpAt`, but not actively snoozed). Opens `SnoozeModal`. Hidden if `isCurrentlySnoozed`.
 *   Archive, Delete.
 
 ### 5.4. Inline Editing Mode
@@ -124,12 +121,15 @@ Displays a single task or note card.
 ## 7. State Management (`src/App.tsx` & `src/hooks/useLocalStorage.ts`)
 
 *   **`entries: Entry[]`**: Main data, `localStorage` key `'task-notes-entries-v3'`.
-*   **`animateWakeUpForIds: Set<string>`**: Stores IDs of items that just woke up, to trigger animation. IDs are removed after a short timeout.
-*   **Periodic Unsnooze Check & Notifications**: `useEffect` checks snoozed items. If unsnoozes:
+*   **`animateWakeUpForIds: Set<string>`**: Stores IDs of items that just woke up from a snoozed state (auto or manual), to trigger animation. IDs are removed after a short timeout.
+*   **Periodic Unsnooze Check & Notifications**: `useEffect` checks snoozed items. If item auto-unsnoozes:
     *   Sets `wokeUpAt`, explicitly clears `snoozedUntil`.
     *   Adds item ID to `animateWakeUpForIds` for animation.
     *   Fires desktop notification (if permitted).
-*   **Clearing `wokeUpAt`**: Cleared if item re-snoozed, manually unsnoozed, edited (snooze settings), completed (task), or archived (note).
+*   **Setting/Clearing `wokeUpAt`**:
+    *   `wokeUpAt` is SET when an item auto-unsnoozes or is manually unsnoozed (activated) from an actively snoozed state.
+    *   `wokeUpAt` is CLEARED if an item is re-snoozed, if its snooze settings are edited to a new future time, if it's completed (task), or archived (note).
+    *   Manually activating an item that was *only* 'woken up' (had `wokeUpAt` set but was not actively snoozed) will clear its `wokeUpAt` status (though the UI aims to show the Snooze icon, not Activate icon, in this state).
 
 ## 8. Utility Functions (`src/utils/dateUtils.ts`)
 
@@ -142,6 +142,7 @@ JSON/CSV export includes `wokeUpAt`. Import handles this field.
 ## 10. Key User Workflows
 
 *   **Automatic Unsnooze**: Item becomes active, `snoozedUntil` is cleared, `wokeUpAt` is set, card animates with a flash, desktop notification fires. Item can be snoozed again.
+*   **Manual Unsnooze (Activate Snoozed Item)**: Clicking the "Activate" icon on a snoozed item makes it active, `snoozedUntil` is cleared, `wokeUpAt` is set to the current time, and the card animates with a flash. Item can be snoozed again.
 *   **Re-Snooze Woken Item**: Woken item's card shows Snooze icon. Clicking opens `SnoozeModal`. Snoozing sets `snoozedUntil` and clears `wokeUpAt`.
 *   Other workflows account for new fields and `wokeUpAt` clearing/setting.
 

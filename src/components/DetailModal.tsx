@@ -94,7 +94,8 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
     e.stopPropagation();
     if (onUnsnoozeItem) {
       onUnsnoozeItem(entry.id);
-      onClose(); 
+      // No need to call onClose here, App.tsx handleUnsnoozeItem might update selectedEntryForDetail
+      // which will re-render the modal with updated info, or App.tsx may close it if appropriate.
     }
   };
   
@@ -128,11 +129,10 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                     </ActionIconButton>
                 )}
-                {isCurrentlySnoozed && onUnsnoozeItem && !entry.isCompleted && !entry.isArchived &&(
-                     <ActionIconButton onClick={handleUnsnooze} ariaLabel={`Unsnooze ${entry.type.toLowerCase()} ${entry.title}`} title="Unsnooze" className={`${actionIconColor} hover:text-green-400`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-2.474mem0 0l.475-2.076m4.125 0l.387 1.688m-1.542-1.688L12 10.5m0 0l-1.132-4.938L9 7.5m0 0l3 3m0 0l3-3m-3 3v4.5m0 0H9m3 0h3m-3 0a9 9 0 11-18 0 9 9 0 0118 0zM4 12.077A8.906 8.906 0 002.026 15C3.21 16.89 5.846 18 9 18s5.79-1.11 7.974-3A8.906 8.906 0 0020 12.077" />
-                           <line x1="3" y1="3" x2="21" y2="21" strokeWidth="2" />
+                {onUnsnoozeItem && (isCurrentlySnoozed || entry.wokeUpAt) && !entry.isCompleted && !entry.isArchived && (
+                     <ActionIconButton onClick={handleUnsnooze} ariaLabel={`Activate ${entry.type.toLowerCase()} ${entry.title}`} title="Activate Now" className={`${actionIconColor} hover:text-green-400`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                           <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L8.029 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" />
                         </svg>
                     </ActionIconButton>
                 )}
@@ -196,11 +196,11 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
             )}
         </div>
         
-        {entry.type === EntryType.Task && (onToggleComplete || onOpenCompletionNotesModal) && !isCurrentlySnoozed && !entry.isArchived && (
+        {entry.type === EntryType.Task && (onToggleComplete || onOpenCompletionNotesModal) && !entry.isArchived && (
             <div className="flex-shrink-0 pt-3 border-t border-[rgb(var(--divider-color))]">
                 <div className="flex justify-end">
                     <button onClick={handleToggleComplete} className={`${actionButtonBaseClass} ${primaryActionClass} w-full sm:w-auto`}
-                     disabled={entry.isCompleted && !onToggleComplete} 
+                     disabled={(entry.isCompleted && !onToggleComplete) || isCurrentlySnoozed } 
                     >
                     {entry.isCompleted ? "Mark as Incomplete" : "Mark as Complete"}
                     </button>
