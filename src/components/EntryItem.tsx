@@ -35,6 +35,7 @@ interface EntryItemProps {
   onDropHandler: (targetId: string, e: React.DragEvent<HTMLDivElement>) => void;
   onDragEndHandler: (e: React.DragEvent<HTMLDivElement>) => void;
   existingProjects: string[];
+  animateNow?: boolean; // For wakeup animation
 }
 
 const ActionButton: React.FC<{ onClick: (e: React.MouseEvent) => void; ariaLabel: string; title: string; children: React.ReactNode; className?: string }> = 
@@ -105,6 +106,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
   onDropHandler,
   onDragEndHandler,
   existingProjects,
+  animateNow,
 }) => {
   const { id, title, details, type, createdAt, isCompleted, completedAt, dueDate, contact, url, isArchived, archivedAt, project, priority, snoozedUntil, wokeUpAt } = entry;
 
@@ -135,9 +137,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
       setEditUrl(url || '');
       setEditProject(project || '');
       setEditPriority(priority || PriorityLevel.Normal);
-      // When editing, if it was snoozed (or woke up), use the snoozedUntil for editing.
-      // wokeUpAt is a display-only status for non-editing mode.
-      const snoozeTimeToEdit = snoozedUntil || wokeUpAt; // Prefer snoozedUntil if active, fallback to wokeUpAt for date context
+      const snoozeTimeToEdit = snoozedUntil || wokeUpAt; 
       setEditSnoozedUntilDate(snoozeTimeToEdit ? new Date(snoozeTimeToEdit).toISOString().split('T')[0] : '');
       setEditSnoozedUntilTime(snoozeTimeToEdit ? new Date(snoozeTimeToEdit).toTimeString().substring(0,5) : '');
       
@@ -259,7 +259,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={handleLocalDrop}
-      className={`${cardBaseStyle} ${cardSpecificStyle} ${isCurrentlyBeingDragged ? 'dragging-item' : ''} ${isDragOver ? 'drag-over-target-indicator' : ''} ${(allowActions && !isEditingCurrentEntry) ? 'drag-handle' : 'cursor-default'}`}
+      className={`${cardBaseStyle} ${cardSpecificStyle} ${isCurrentlyBeingDragged ? 'dragging-item' : ''} ${isDragOver ? 'drag-over-target-indicator' : ''} ${(allowActions && !isEditingCurrentEntry) ? 'drag-handle' : 'cursor-default'} ${animateNow ? 'animate-wakeup-flash' : ''}`}
       aria-roledescription={(allowActions && !isEditingCurrentEntry) ? "Draggable item" : undefined}
       role="article" 
       tabIndex={0}
@@ -305,7 +305,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
             <label htmlFor={`edit-url-${id}`} className={labelClass}>URL</label>
             <input id={`edit-url-${id}`} type="url" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} className={inputBaseClass} placeholder="Edit URL..." aria-label="Edit URL" />
           </div>
-           {(type === EntryType.Task || type === EntryType.Note) ? ( // Snooze applicable to both types
+           {(type === EntryType.Task || type === EntryType.Note) ? ( 
             <div className="grid grid-cols-2 gap-x-3 items-end">
                 <div className="relative">
                     <label htmlFor={`edit-snooze-date-${id}`} className={labelClass}>Snooze Until Date (Optional)</label>
@@ -358,7 +358,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
                 </svg>
               </ActionButton>
             )}
-            {allowActions && onOpenSnoozeModal && !isCompleted && !isArchived && !isCurrentlySnoozed && !wokeUpAt && ( 
+            {allowActions && onOpenSnoozeModal && !isCompleted && !isArchived && !isCurrentlySnoozed && ( 
               <ActionButton onClick={(e) => { e.stopPropagation(); onOpenSnoozeModal(entry);}} ariaLabel={`Snooze ${type.toLowerCase()} ${title}`} title="Snooze" className={actionIconColor}>
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -417,7 +417,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
                 </p>
               )}
               {wokeUpAt && !isCurrentlySnoozed && !isCompleted && !isArchived && (
-                 <p className="font-medium text-emerald-400"> {/* Changed color for wokeUpAt */}
+                 <p className="font-medium text-emerald-400">
                     Woke up: {formatDate(wokeUpAt)}
                  </p>
               )}

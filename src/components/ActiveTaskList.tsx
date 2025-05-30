@@ -20,6 +20,7 @@ interface ActiveTaskListProps {
   onDropHandler: (targetId: string, e: React.DragEvent<HTMLDivElement>) => void;
   onDragEndHandler: (e: React.DragEvent<HTMLDivElement>) => void;
   existingProjects: string[];
+  animateWakeUpForIds: Set<string>; 
 }
 
 const ActiveTaskList: React.FC<ActiveTaskListProps> = ({ 
@@ -39,6 +40,7 @@ const ActiveTaskList: React.FC<ActiveTaskListProps> = ({
   onDropHandler,
   onDragEndHandler,
   existingProjects,
+  animateWakeUpForIds,
 }) => {
   if (tasks.length === 0) {
     return <p className="text-center text-[rgb(var(--text-placeholder))] py-10">No active tasks!</p>;
@@ -66,6 +68,7 @@ const ActiveTaskList: React.FC<ActiveTaskListProps> = ({
           onDropHandler={onDropHandler}
           onDragEndHandler={onDragEndHandler}
           existingProjects={existingProjects}
+          animateNow={animateWakeUpForIds.has(task.id)}
         />
       ))}
     </div>

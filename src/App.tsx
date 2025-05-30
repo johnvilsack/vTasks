@@ -51,6 +51,8 @@ const App: React.FC = () => {
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
   const [notificationPermissionState, setNotificationPermissionState] = useState<NotificationPermission>(Notification.permission);
+  const [animateWakeUpForIds, setAnimateWakeUpForIds] = useState<Set<string>>(new Set());
+
 
   useEffect(() => {
     if (typeof Notification !== "undefined" && Notification.permission === 'default') {
@@ -83,24 +85,45 @@ const App: React.FC = () => {
       const nowTime = now.getTime();
       const nowISO = now.toISOString();
       let changed = false;
+      const originalEntriesSnapshot = [...entries]; // Snapshot before potential modifications
 
       const updatedEntries = entries.map(entry => {
         if (entry.snoozedUntil && new Date(entry.snoozedUntil).getTime() <= nowTime) {
           changed = true;
-          const { snoozedUntil: _, ...rest } = entry; 
-          const wokenEntry = { ...rest, wokeUpAt: nowISO };
+          const { snoozedUntil: _snoozed, ...rest } = entry; 
+          // Explicitly clear snoozedUntil and set wokeUpAt
+          const wokenEntry = { ...rest, wokeUpAt: nowISO, snoozedUntil: undefined };
+
 
           if (notificationPermissionState === 'granted') {
             new Notification('vTasks Wake Up!', {
               body: `Item "${wokenEntry.title}" is now active.`,
-              icon: '/vite.svg' // Optional: Re-uses the favicon
+              icon: '/vite.svg' 
             });
           }
           return wokenEntry;
         }
         return entry;
       });
+
       if (changed) {
+        const newlyWokenEntries = updatedEntries.filter(updatedEntry => {
+            const originalEntry = originalEntriesSnapshot.find(oe => oe.id === updatedEntry.id);
+            return originalEntry?.snoozedUntil && !updatedEntry.snoozedUntil && updatedEntry.wokeUpAt;
+        });
+
+        if (newlyWokenEntries.length > 0) {
+            const newIdsToAnimate = new Set(newlyWokenEntries.map(e => e.id));
+            setAnimateWakeUpForIds(prev => new Set([...prev, ...newIdsToAnimate]));
+
+            setTimeout(() => {
+                setAnimateWakeUpForIds(currentAnimatingIds => {
+                    const nextAnimatingIds = new Set(currentAnimatingIds);
+                    newIdsToAnimate.forEach(id => nextAnimatingIds.delete(id));
+                    return nextAnimatingIds;
+                });
+            }, 2000); // Animation duration (1.5s) + buffer (0.5s)
+        }
         setEntries(updatedEntries);
       }
     }, 60000); // Check every minute
@@ -161,6 +184,7 @@ const App: React.FC = () => {
       completedAt: completedAtTime,
       completionNotes: notes.trim() || undefined,
       wokeUpAt: undefined, // Clear wokeUpAt
+      snoozedUntil: undefined, // Ensure snoozedUntil is cleared
     };
 
     setEntries(prevEntries =>
@@ -197,7 +221,8 @@ const App: React.FC = () => {
             ...itemDetailsRelevant,
             isArchived: true,
             archivedAt: updatedArchivedTime,
-            wokeUpAt: undefined, // Clear wokeUpAt
+            wokeUpAt: undefined, 
+            snoozedUntil: undefined, 
         };
     } else { // Unarchiving
         const { wokeUpAt: _wokeUpRemoved, ...itemDetailsRelevant } = itemToArchive;
@@ -205,7 +230,8 @@ const App: React.FC = () => {
             ...itemDetailsRelevant,
             isArchived: false,
             archivedAt: undefined,
-            wokeUpAt: undefined, // Clear wokeUpAt
+            wokeUpAt: undefined, 
+            // snoozedUntil remains as is unless explicitly changed elsewhere for unarchiving
         };
     }
 
@@ -269,7 +295,8 @@ const App: React.FC = () => {
               isCompleted: true,
               completedAt: new Date().toISOString(),
               completionNotes: notes ? notes : (entry.completionNotes ? entry.completionNotes : undefined),
-              wokeUpAt: undefined, // Clear wokeUpAt
+              wokeUpAt: undefined, 
+              snoozedUntil: undefined,
             };
           } else { // Marking as incomplete
              const { wokeUpAt: _wokeUpRemoved, ...entryDetailsRelevant } = entry;
@@ -278,7 +305,8 @@ const App: React.FC = () => {
               isCompleted: false, 
               completedAt: undefined,
               completionNotes: undefined,
-              wokeUpAt: undefined, // Clear wokeUpAt
+              wokeUpAt: undefined, 
+              // snoozedUntil remains as is unless explicitly changed elsewhere
             };
           }
         }
@@ -297,6 +325,7 @@ const App: React.FC = () => {
                 completedAt: new Date().toISOString(),
                 completionNotes: notes ? notes : (prev.completionNotes ? prev.completionNotes : undefined),
                 wokeUpAt: undefined,
+                snoozedUntil: undefined,
             };
           } else {
             return {
@@ -347,7 +376,7 @@ const App: React.FC = () => {
               project: newProject?.trim() || undefined,
               priority: newPriority || PriorityLevel.Normal,
               snoozedUntil: newSnoozedUntil || undefined, 
-              wokeUpAt: undefined, // Clear wokeUpAt on any edit that involves snooze change or simply saving
+              wokeUpAt: newSnoozedUntil ? undefined : entry.wokeUpAt, // Clear wokeUpAt if re-snoozing
             }
           : entry
       )
@@ -401,8 +430,6 @@ const App: React.FC = () => {
       const isDraggedSnoozed = !!draggedEntry.snoozedUntil && new Date(draggedEntry.snoozedUntil).getTime() > new Date().getTime();
       const isTargetSnoozed = !!targetEntry.snoozedUntil && new Date(targetEntry.snoozedUntil).getTime() > new Date().getTime();
       
-      // Also consider wokeUpAt status for grouping, if items that woke up shouldn't mix with never-snoozed or still-snoozed.
-      // For now, assuming wokeUpAt items are treated as active, non-snoozed.
       const isDraggedWoken = !!draggedEntry.wokeUpAt && !isDraggedSnoozed;
       const isTargetWoken = !!targetEntry.wokeUpAt && !isTargetSnoozed;
 
@@ -411,7 +438,7 @@ const App: React.FC = () => {
           draggedEntry.isArchived !== targetEntry.isArchived ||
           (draggedEntry.type === EntryType.Task && draggedEntry.isCompleted !== targetEntry.isCompleted) ||
           isDraggedSnoozed !== isTargetSnoozed ||
-          isDraggedWoken !== isTargetWoken // Prevent dragging woken items into non-woken groups if desired
+          isDraggedWoken !== isTargetWoken 
           ) {
         return currentEntries; 
       }
@@ -542,7 +569,6 @@ const App: React.FC = () => {
       const parsedHeaders = parseCSVLine(headerLine).map(h => h.trim());
       
       const expectedHeadersSet = new Set(CSV_HEADERS);
-      // Update minExpectedHeaders if 'wokeUpAt' is considered essential or part of a base set
       const minExpectedHeaders = CSV_HEADERS.slice(0, CSV_HEADERS.indexOf('project')); 
 
       if (parsedHeaders.length < minExpectedHeaders.length || !minExpectedHeaders.every(h => parsedHeaders.includes(h as string))) {
@@ -588,7 +614,7 @@ const App: React.FC = () => {
                     (entry as any)[key] = PriorityLevel.Normal; 
                 }
                 break;
-            case 'wokeUpAt': // Ensure wokeUpAt is handled if present
+            case 'wokeUpAt': 
                  (entry as any)[key] = value || undefined;
                  break;
             default:
@@ -702,7 +728,7 @@ const App: React.FC = () => {
     setEntries(prevEntries =>
       prevEntries.map(e =>
         e.id === entryToSnooze.id
-          ? { ...e, snoozedUntil: snoozeUntilValue, wokeUpAt: undefined } // Clear wokeUpAt when snoozing
+          ? { ...e, snoozedUntil: snoozeUntilValue, wokeUpAt: undefined } 
           : e
       )
     );
@@ -716,8 +742,8 @@ const App: React.FC = () => {
     setEntries(prevEntries =>
       prevEntries.map(entry => {
         if (entry.id === itemId) {
-          const { snoozedUntil: _, wokeUpAt: __, ...rest } = entry; // Clear snoozedUntil and wokeUpAt
-          return rest;
+          const { snoozedUntil: _, wokeUpAt: __, ...rest } = entry; 
+          return { ...rest, snoozedUntil: undefined, wokeUpAt: undefined }; // Ensure both are cleared
         }
         return entry;
       })
@@ -726,13 +752,13 @@ const App: React.FC = () => {
       setSelectedEntryForDetail(prev => {
         if (!prev) return null;
         const { snoozedUntil: _, wokeUpAt: __, ...rest } = prev;
-        return rest;
+        return { ...rest, snoozedUntil: undefined, wokeUpAt: undefined };
       });
     }
   }, [setEntries, selectedEntryForDetail]);
 
 
-  const nowTimeForFiltering = useMemo(() => new Date().getTime(), [entries, viewMode, activeTab, activeFilters]); 
+  const nowTimeForFiltering = useMemo(() => new Date().getTime(), [entries, viewMode, activeTab, activeFilters, animateWakeUpForIds]); 
 
   const baseActiveTasks = useMemo(() => entries.filter(entry => 
     entry.type === EntryType.Task && 
@@ -829,6 +855,7 @@ const App: React.FC = () => {
                   onDropHandler={handleDrop} 
                   onDragEndHandler={handleDragEnd}
                   existingProjects={existingProjectsForAutocomplete} 
+                  animateWakeUpForIds={animateWakeUpForIds}
                 />;
       case TabView.Notes:
         return <NoteList 
@@ -847,6 +874,7 @@ const App: React.FC = () => {
                   onDropHandler={handleDrop} 
                   onDragEndHandler={handleDragEnd}
                   existingProjects={existingProjectsForAutocomplete}
+                  animateWakeUpForIds={animateWakeUpForIds}
                 />;
       default: return null;
     }

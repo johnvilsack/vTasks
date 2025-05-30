@@ -1,11 +1,11 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 
 // FIX: Update initialValue type to T | (() => T) and adjust useState initializer logic
 function useLocalStorage<T,>(
   key: string,
   initialValueInput: T | (() => T) // Changed parameter name for clarity
-): [T, React.Dispatch<React.SetStateAction<T>>] {
+): [T, Dispatch<SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     // This function is the initializer for useState.
     // It should return the initial state of type T.

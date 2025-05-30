@@ -5,7 +5,7 @@
 
 **Objective:** Develop "vTasks," a web application for task and note management.
 
-**Core Purpose:** Allow users to create, view, edit, complete, archive (notes only), snooze, filter, and delete tasks and notes. The application must be lightweight, user-friendly, and data-driven. Desktop notifications for items coming off snooze.
+**Core Purpose:** Allow users to create, view, edit, complete, archive (notes only), snooze, filter, and delete tasks and notes. The application must be lightweight, user-friendly, and data-driven. Includes desktop notifications for items coming off snooze and a visual flash animation on cards for newly woken items.
 
 **Data Storage:** All user data must be persisted locally in the user's web browser (`localStorage`). No server-side storage.
 
@@ -31,7 +31,7 @@ Central data structure for tasks and notes. Attributes:
 *   `archivedAt`: (String, Optional) ISO 8601 date-time.
 *   `project`: (String, Optional) Project name/tag.
 *   `priority`: (Enum/String `PriorityLevel`) `CRITICAL`, `HIGH`, `NORMAL` (default), `LOW`.
-*   `snoozedUntil`: (String, Optional) ISO 8601 date-time.
+*   `snoozedUntil`: (String, Optional) ISO 8601 date-time. Cleared when item auto-unsnoozes.
 *   `wokeUpAt`: (String, Optional) ISO 8601 date-time, when item auto-unsnoozed.
 
 ### 2.2. `PriorityLevel` Enum
@@ -45,158 +45,77 @@ For managing filter state: `project?: string`, `priority?: PriorityLevel`.
 Responsive design.
 
 ### 3.1. AppBar
-*   Fixed top. Displays "vTasks". Uses theme colors.
+*   Fixed top. Displays "vTasks".
 
 ### 3.2. Input Form
-Persistent below AppBar.
-*   **Entry Type Selection:** Segmented control ("Task", "Note").
-*   **Title Input & "Add Details" Toggle:**
-    *   Required text input for `title`. Placeholder dynamic.
-    *   Icon button (plus/minus) on right of title input toggles "Options Panel". Styled for affordance.
-*   **Options Panel (Collapsible):** Initially hidden.
-    *   `Details`: Textarea.
-    *   `Project`: Text input. Autocomplete based on existing active/snoozed projects.
-    *   `Due Date`: Date input.
-    *   `Priority`: Select dropdown (`Critical`, `High`, `Normal`, `Low`). Default to `Normal`.
-    *   `Contact`: Text input.
-    *   `URL`: URL input. Auto-prepends `https://` if scheme missing.
-*   **Submission:** Full-width "Add Task"/"Add Note" button.
-    *   On submit: Creates `Entry` (with `project`, `priority`), adds to list, clears form, collapses Options Panel, sets relevant tab active.
+Persistent below AppBar. Segmented control (Task/Note), Title input, collapsible Options Panel (Details, Project, Due Date, Priority, Contact, URL). Submit button.
 
 ### 3.3. Main Content Area
 Controlled by `viewMode` state (`'main'`, `'completed'`, `'archived'`, `'snoozed'`).
 
 *   **Main View (`viewMode === 'main'`):**
-    *   **Tabs & Filters:**
-        *   Tabs: "Active Tasks", "Notes". Display filtered item counts. Active tab highlighted.
-        *   **Filter Button & Dropdown:** To the right of tabs.
-            *   Button: Filter icon. Toggles dropdown.
-            *   Dropdown: Filter by "Project" and "Priority". Options (projects, priorities) dynamically populated from current view's active/snoozed items (pre-filter). "All" option for each. "Clear All Filters" button. Closes on outside click.
-    *   **Tab Content:** Lists active tasks or notes (filtered).
-    *   **Navigation Buttons (Order: Snoozed, Completed, Archived):**
-        *   "View Snoozed Items": If snoozed items exist. Sets `viewMode = 'snoozed'`.
-        *   "View Completed Tasks": If completed tasks exist. Sets `viewMode = 'completed'`.
-        *   "View Archived Notes": If archived notes exist. Sets `viewMode = 'archived'`.
-        *   Conditional rounded corners based on button visibility.
-*   **Snoozed Items View (`viewMode === 'snoozed'`):**
-    *   Header: "Snoozed Items". "← Back" button.
-    *   List: Items with `snoozedUntil` in the future. Sorted by `snoozedUntil` (soonest first).
-    *   Items are editable, can be unsnoozed, deleted, etc.
-*   **Completed Tasks View (`viewMode === 'completed'`):**
-    *   Header: "Completed Tasks". "← Back" button.
-    *   List: Grouped by completion week (most recent first). Tasks within groups sorted by `completedAt` (most recent first).
-    *   **Copy Titles Button:** Per week group, copies titles of tasks in that group to clipboard. Shows "Copied!" feedback.
-*   **Archived Notes View (`viewMode === 'archived'`):**
-    *   Header: "Archived Notes". "← Back" button. List sorted by `archivedAt` (most recent first).
+    *   **Tabs & Filters:** "Active Tasks", "Notes" tabs with counts. Filter button & dropdown for Project/Priority.
+    *   **Tab Content:** Lists active tasks or notes. Newly woken items' cards will briefly flash their background.
+    *   **Navigation Buttons:** To "Snoozed", "Completed", "Archived" views.
+*   **Snoozed Items View (`viewMode === 'snoozed'`):** Lists items with future `snoozedUntil`.
+*   **Completed Tasks View (`viewMode === 'completed'`):** Grouped by completion week.
+*   **Archived Notes View (`viewMode === 'archived'`):** Sorted by `archivedAt`.
 
 ### 3.4. Footer
-*   Non-sticky.
-*   **"Import Data" Button:** Opens "Import Data Modal".
-*   **"Export All Data" Button:** Opens "Export Options Modal" (if data exists).
-*   Copyright: "© 2025 John Vilsack".
+Non-sticky. "Import Data", "Export All Data" buttons. Copyright.
 
 ## 4. Entry Item Component (Card Display)
 
 ### 4.1. General Appearance & Interaction
-*   Rounded corners, shadow.
-*   **Priority Indicator:** Colored left border (Critical: Red, High: Yellow, Low: Sky Blue). Normal priority: default border.
-*   **Icon Opacity:** Action icons 10% opaque, 100% on hover.
-*   Clicking card (not actions) opens "Detail Modal".
-*   **Drag-and-Drop (Active Lists):** Draggable card. Visual cues for drag. Reorder within same type/status/snooze-state.
+*   Rounded card, shadow, priority border. Briefly animates background on auto-unsnooze if `animateNow` prop is true.
+*   Clicking card opens "Detail Modal". Draggable in active lists.
 
 ### 4.2. Content (Non-Editing State)
-*   **Title:** Prominent. (No strikethrough for completed tasks).
-*   **Task Checkbox (Active Tasks):** Left of title. Checking opens "Completion Notes Modal". Unchecking uncompletes.
-*   **Project & Contact Info (Tasks):** Displayed below title (e.g., "ProjectX - ContactY"). Also on completed task cards.
-*   **Dates (Layout):** Project/Contact info on left. Due Date / Snoozed Date / Woke Up Date on right, on same line. If both Due & Snooze/Woke Up Date for active task, Due Date above Snooze/Woke Up Date on the right.
-*   **Due Date:** If present, not completed/archived.
-*   **Snoozed Date:** If `snoozedUntil` is future, not completed/archived/woken. Formatted with time.
-*   **Woke Up Date:** If `wokeUpAt` is set (item auto-unsnoozed), not completed/archived/re-snoozed. Formatted with time. Takes precedence over past snooze for display.
-*   **Completed At Date:** For completed tasks.
-*   **Archived At Date:** For archived notes.
+*   Title, Task Checkbox. Project & Contact.
+*   Dates: Due Date, Snoozed Date (if future `snoozedUntil`), Woke Up Date (if `wokeUpAt` set, distinct color), Completed/Archived At.
 
-### 4.3. Action Icons (Top-Right, if `allowActions === true`, conditional visibility)
-*   **URL Icon (Globe):** If `entry.url` exists. Opens URL.
-*   **Edit Icon (Pencil):** For active/snoozed items. Toggles inline editing.
-*   **Unsnooze Icon (Bell Slash):** For snoozed items. Unsnoozes directly. Hides Snooze icon. Clears `wokeUpAt`.
-*   **Snooze Icon (Clock):** For active (non-snoozed, non-completed, non-archived, non-woken) items. Opens "Snooze Modal".
-*   **Archive Icon (Archive Box):** For active notes. Opens "Confirm Archive Modal".
-*   **Delete Icon (Trash Can):** For active/snoozed items. Opens "Confirm Delete Modal".
+### 4.3. Action Icons (Top-Right, conditional)
+*   URL, Edit.
+*   **Unsnooze Icon**: For snoozed items. Clears `snoozedUntil` and `wokeUpAt`.
+*   **Snooze Icon**: For active items (non-snoozed, including those with `wokeUpAt`). Opens "Snooze Modal". Hidden if `isCurrentlySnoozed`.
+*   Archive, Delete.
 
 ### 4.4. Inline Editing Mode
-Triggered by "Edit" icon.
-*   Input fields for: `Title`, `Details` (textarea scrolls to bottom, focuses end), `Project` (autocomplete), `Due Date` (with "Clear" (X) button), `Priority` (select), `Contact`, `URL`.
-*   **Snooze Fields:** `Snooze Until Date` (with "Clear" (X) button), `Snooze Until Time`. Defaults to 12 AM if time empty. "Clear" button should be small, circular, inside the input field, vertically centered.
-*   "Save", "Cancel" buttons. Title required. Saving clears `wokeUpAt`.
+Inputs for Title, Details, Project, Due Date (clearable), Priority, Contact, URL. Snooze Date/Time inputs (date clearable). Saving while setting a new snooze clears `wokeUpAt`.
 
 ## 5. Modals
 
-Overlay with backdrop. Centered content.
-
-### 5.1. Detail Modal
-*   Trigger: Card click.
-*   Header: Title. Action Icons (Edit, Snooze/Unsnooze, Archive/Unarchive, Delete, Close).
-*   Body (Scrollable): "Label: Value" for Type, Project, Priority (if not Normal), Details, Due Date, Contact, URL (clickable), Created At, Completed At (with Completion Notes), Archived At, Snoozed Until (with time), Woke Up At (with time, distinct style).
-*   Footer (Tasks): "Mark as Complete"/"Mark as Incomplete". Marking complete opens "Completion Notes Modal".
-
-### 5.2. Confirm Delete Modal
-*   Standard confirmation. Message includes item title.
-
-### 5.3. Completion Notes Modal
-*   Trigger: Marking task complete. Title includes task title. Textarea for notes.
-*   Buttons: "Skip & Complete", "Save Notes & Complete Task".
-
-### 5.4. Confirm Archive Modal
-*   Standard confirmation. Dynamic titles/messages for archive/unarchive.
-
-### 5.5. Export Options Modal
-*   Trigger: "Export All Data" button. Title: "Export Data".
-*   Buttons: "Export as JSON", "Export as CSV", "Cancel".
-
-### 5.6. Import Data Modal
-*   Trigger: "Import Data" button. Title: "Import Data". File input (JSON/CSV).
-*   **Import Mode Radio Buttons:** "Overwrite existing data", "Merge with existing data". Merge assigns new UUIDs.
-*   Warning messages. Buttons: "Import File", "Cancel".
-
-### 5.7. Snooze Modal
-*   Trigger: Snooze icon. Title: "Snooze Item", includes item title.
-*   Inputs: Snooze Date, Snooze Time. Defaults time to 12 AM if only date provided. Validates future time.
-*   Buttons: "Snooze", "Cancel". Snoozing clears `wokeUpAt`.
+(Detail, ConfirmDelete, CompletionNotes, ConfirmArchive, ExportOptions, ImportData, SnoozeModal).
+*   **Snooze Modal**: Used for initial snoozing and re-snoozing woken items. Snoozing clears `wokeUpAt`.
 
 ## 6. State Management & Data Flow
 
-*   **Primary Data Store:** `entries: Entry[]`. Persisted to `localStorage` (key: `task-notes-entries-v3`).
-*   **Key States:** `entries`, `activeTab`, `viewMode`, `editingNoteId`, `editingTaskId`, `draggedItemId`, `activeFilters`, `isFilterDropdownOpen`, modal visibility states, `notificationPermissionState`.
-*   **Periodic Unsnooze & Notifications:** Check snoozed items every minute. If item unsnoozes, set `wokeUpAt`. If notifications permitted, fire desktop notification ("vTasks Wake Up! Item '[Title]' is now active.").
+*   **Primary Data Store:** `entries: Entry[]` in `localStorage` (key: `task-notes-entries-v3`).
+*   **Key States:** `entries`, `activeTab`, `viewMode`, `editingNoteId`, `editingTaskId`, `draggedItemId`, `activeFilters`, modal states, `notificationPermissionState`, `animateWakeUpForIds` (Set of item IDs for wake-up animation).
+*   **Periodic Unsnooze & Notifications:** Checks snoozed items. If item unsnoozes:
+    *   Sets `wokeUpAt`, clears `snoozedUntil`.
+    *   Adds ID to `animateWakeUpForIds` (removed after timeout).
+    *   Fires desktop notification.
 *   **Clearing `wokeUpAt`**: Status is cleared if item re-snoozed, manually unsnoozed, edited (snooze settings), completed, or archived.
-*   **Derived Data:** Memoized lists for active (filtered), completed, archived, snoozed items. Memoized project lists for autocomplete and filter options.
-*   Reactive UI updates.
+*   Derived data memoized.
 
 ## 7. Utility Functions
 
-### 7.1. Date Utilities
-*   `getWeekOfYear`, `getWeekDates`, `formatWeekDateRange`, `formatDate` (full with time for Snooze/Woke Up), `formatDueDate`, `formatDateShort`, `formatArchivedAtDate`.
+Date utilities for formatting (`formatDate` for full date/time, `formatDueDate`, etc.).
 
 ## 8. Data Import/Export Functionality
 
-*   **Filename:** `vtasks-export-YYYYMMDD_HHMMSS.[json|csv]`.
-*   **JSON/CSV:** Handle all `Entry` fields including `project`, `priority`, `snoozedUntil`, `wokeUpAt`.
-*   **CSV Parsing:** Robustly handle escaped fields.
-*   **Import Logic:** Validate structure. Handle overwrite/merge modes.
+JSON/CSV, includes all fields like `wokeUpAt`. Timestamped filenames. Robust parsing. Overwrite/merge modes.
 
 ## 9. Styling & Theme (Exclusive Dark Theme)
 
-*   Use CSS custom properties (see `index.html`).
-*   Includes colors for main layout, text, accents, inputs, buttons, priorities (Critical: Red, High: Yellow, Low: Sky Blue for borders), "Woke Up" status (e.g., Emerald).
-*   Typography: 'Inter'.
-*   Custom scrollbars. Dark mode for native date/time pickers (`color-scheme: dark`).
+CSS custom properties from `index.html`. Tailwind. Custom scrollbars. `color-scheme: dark` for date/time pickers.
+*   **Animation CSS**: `@keyframes wakeupFlash` and `.animate-wakeup-flash` for card background flash on unsnooze.
 
 ## 10. Accessibility (A11Y)
 
-*   Semantic HTML, ARIA labels/roles, color contrast, keyboard navigability, focus indicators. Notifications should be informative.
+Semantic HTML, ARIA, keyboard navigation, focus, contrast. Animation is supplemental.
 
 ## 11. Error Handling & Edge Cases
 
-*   Empty list messages. Title input required.
-*   Alerts for import/export issues.
-*   Notification permission handling.
+Empty list messages, required title. Import/export alerts. Notification permission.
