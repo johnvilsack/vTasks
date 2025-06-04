@@ -10,3 +10,5 @@ Settings?
 inline editing
 markdown
 search
+If select new date for snooze, resset clock to 8am
+Tags? Types? 
