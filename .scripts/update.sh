@@ -8,7 +8,7 @@ if [[ -f "$FILE" ]]; then
     sed -i '' '/<link rel="stylesheet" href="\/index.css">/d' ~/Desktop/vtasks/index.html 
     sed -i '' '/<link rel="icon" type="image\/svg+xml" href=".\/vite.svg" \/>/d' ~/Desktop/vtasks/index.html
     rm -rf ~/Desktop/vtasks/.github
-    cp -Rf ~/Desktop/vtasks/* ~/Documents/GitHub/vtasks/
+    cp -Rf ~/Desktop/vtasks/* ~/github/vtasks/
     rm -rf ~/Desktop/vtasks
     rm -rf ~/Desktop/vtasks.zip
     npm run build
