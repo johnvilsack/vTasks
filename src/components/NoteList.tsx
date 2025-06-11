@@ -12,7 +12,7 @@ interface NoteListProps {
   onSaveEdit: (id: string, title: string, details: string, dueDate?: string, contact?: string, url?: string, project?: string, priority?: any, snoozedUntil?: string) => void;
   onCancelEdit: (id: string) => void;
   onOpenDetailModal: (entry: Entry) => void;
-  onOpenSnoozeModal: (entry: Entry) => void;
+  onOpenQuickSnoozeMenu: (entry: Entry, event: React.MouseEvent) => void;
   onUnsnoozeItem: (itemId: string) => void;
   draggedItemId: string | null;
   onDragStartHandler: (id: string, e: React.DragEvent<HTMLDivElement>) => void;
@@ -30,7 +30,7 @@ const NoteList: React.FC<NoteListProps> = ({
   onSaveEdit,
   onCancelEdit,
   onOpenDetailModal,
-  onOpenSnoozeModal,
+  onOpenQuickSnoozeMenu,
   onUnsnoozeItem,
   draggedItemId,
   onDragStartHandler,
@@ -56,7 +56,7 @@ const NoteList: React.FC<NoteListProps> = ({
           onCancelEdit={onCancelEdit}
           allowActions={true}
           onOpenDetailModal={onOpenDetailModal}
-          onOpenSnoozeModal={onOpenSnoozeModal}
+          onOpenQuickSnoozeMenu={onOpenQuickSnoozeMenu}
           onUnsnoozeItem={onUnsnoozeItem}
           draggedItemId={draggedItemId}
           onDragStartHandler={onDragStartHandler}

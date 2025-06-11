@@ -22,6 +22,7 @@ const ArchivedNoteList: React.FC<ArchivedNoteListProps> = ({ notes, onOpenDetail
           entry={note}
           allowActions={false} 
           onOpenDetailModal={onOpenDetailModal}
+          onOpenQuickSnoozeMenu={(_entry, _event) => {}} // Added no-op function
           draggedItemId={null}
           onDragStartHandler={() => {}}
           onDropHandler={() => {}}

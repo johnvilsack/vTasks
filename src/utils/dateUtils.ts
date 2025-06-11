@@ -70,7 +70,6 @@ export const formatDueDate = (dateString?: string): string => {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-    // timeZone: 'UTC' // Might not be needed if it's already a full ISO string
   });
 };
 
@@ -90,4 +89,58 @@ export const formatArchivedAtDate = (dateString?: string): string => {
         day: 'numeric',
         year: 'numeric',
     });
+};
+
+// Quick Snooze Date Calculation Utilities
+
+export const getLaterTodayDate = (): Date => {
+  const now = new Date();
+  now.setHours(now.getHours() + 4);
+  return now;
+};
+
+export const getTomorrowDate = (): Date => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(8, 0, 0, 0); // 8:00 AM
+  return tomorrow;
+};
+
+export const getThisWeekendSnoozeDate = (): Date => {
+  const now = new Date();
+  const currentDay = now.getDay(); // Sunday = 0, Monday = 1, ..., Saturday = 6
+  const friday = 5;
+  let daysUntilFriday = friday - currentDay;
+
+  if (currentDay > friday || (currentDay === friday && now.getHours() >= 17)) { // If it's past Friday 5 PM or weekend
+    daysUntilFriday += 7; // Go to next week's Friday
+  }
+
+  const snoozeDate = new Date(now);
+  snoozeDate.setDate(now.getDate() + daysUntilFriday);
+  snoozeDate.setHours(17, 0, 0, 0); // Friday 5:00 PM
+  return snoozeDate;
+};
+
+export const getNextWeekSnoozeDate = (): Date => {
+  const now = new Date();
+  const currentDay = now.getDay(); // Sunday = 0, Monday = 1, ...
+  const monday = 1;
+  let daysUntilMonday = (monday - currentDay + 7) % 7;
+
+  if (daysUntilMonday === 0 && now.getHours() >=8) { // If it's Monday but past 8 AM
+    daysUntilMonday = 7; // Go to next Monday
+  }
+  if (daysUntilMonday === 0 && now.getHours() < 8) {
+    // It's Monday before 8am, perfect.
+  } else if (daysUntilMonday === 0 && currentDay !== monday) { 
+    // This case means it was Sunday and daysUntilMonday became 0, so target next Monday
+    daysUntilMonday = 7;
+  }
+
+
+  const snoozeDate = new Date(now);
+  snoozeDate.setDate(now.getDate() + daysUntilMonday);
+  snoozeDate.setHours(8, 0, 0, 0); // Monday 8:00 AM
+  return snoozeDate;
 };

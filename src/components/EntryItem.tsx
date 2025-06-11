@@ -26,7 +26,7 @@ interface EntryItemProps {
   allowActions: boolean; 
   onOpenDetailModal: (entry: Entry) => void;
   onOpenCompletionNotesModal?: (task: Entry) => void;
-  onOpenSnoozeModal?: (entry: Entry) => void;
+  onOpenQuickSnoozeMenu: (entry: Entry, event: React.MouseEvent) => void; 
   onUnsnoozeItem?: (itemId: string) => void;
 
 
@@ -37,13 +37,25 @@ interface EntryItemProps {
   existingProjects: string[];
 }
 
-const ActionButton: React.FC<{ onClick: (e: React.MouseEvent) => void; ariaLabel: string; title: string; children: React.ReactNode; className?: string }> = 
-  ({ onClick, ariaLabel, title, children, className }) => (
+type AriaHasPopupValue = boolean | 'false' | 'true' | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
+
+const ActionButton: React.FC<{
+  onClick: (e: React.MouseEvent) => void;
+  ariaLabel: string;
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+  'data-is-snooze-button'?: boolean;
+  id?: string;
+  'aria-haspopup'?: AriaHasPopupValue;
+  'aria-controls'?: string;
+}> = ({ onClick, ariaLabel, title, children, className, ...rest }) => (
   <button
     onClick={onClick}
     className={`p-1.5 rounded-full transition-colors duration-150 ${className}`}
     aria-label={ariaLabel}
     title={title}
+    {...rest}
   >
     {children}
   </button>
@@ -98,7 +110,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
   allowActions,
   onOpenDetailModal,
   onOpenCompletionNotesModal,
-  onOpenSnoozeModal,
+  onOpenQuickSnoozeMenu,
   onUnsnoozeItem,
   draggedItemId,
   onDragStartHandler,
@@ -106,12 +118,13 @@ const EntryItem: React.FC<EntryItemProps> = ({
   onDragEndHandler,
   existingProjects,
 }) => {
-  const { id, title, details, type, createdAt, isCompleted, completedAt, dueDate, contact, url, isArchived, archivedAt, project, priority, snoozedUntil, wokeUpAt } = entry;
+  const { id, title, details, type, isCompleted, completedAt, dueDate, contact, url, isArchived, archivedAt, project, priority, snoozedUntil, wokeUpAt } = entry;
 
   const isCurrentlySnoozed = snoozedUntil && new Date(snoozedUntil) > new Date();
   const isEditingCurrentEntry = (type === EntryType.Note && isEditingNoteProp && editingTaskId !== id) || 
                                (type === EntryType.Task && editingTaskId === id); 
                                
+  const snoozeButtonId = `qs-btn-${entry.id}`;
 
   const [editTitle, setEditTitle] = useState(title);
   const [editDetails, setEditDetails] = useState(details || '');
@@ -355,8 +368,17 @@ const EntryItem: React.FC<EntryItemProps> = ({
                 </svg>
               </ActionButton>
             )}
-            {allowActions && onOpenSnoozeModal && !isCompleted && !isArchived && !isCurrentlySnoozed && ( 
-              <ActionButton onClick={(e) => { e.stopPropagation(); onOpenSnoozeModal(entry);}} ariaLabel={`Snooze ${type.toLowerCase()} ${title}`} title="Snooze" className={actionIconColor}>
+            {allowActions && !isCompleted && !isArchived && !isCurrentlySnoozed && ( 
+              <ActionButton 
+                onClick={(e) => { e.stopPropagation(); onOpenQuickSnoozeMenu(entry, e);}} 
+                ariaLabel={`Snooze ${type.toLowerCase()} ${title}`} 
+                title="Snooze" 
+                className={actionIconColor}
+                data-is-snooze-button={true}
+                id={snoozeButtonId}
+                aria-haspopup="menu"
+                aria-controls="qs-menu" 
+              >
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -389,7 +411,7 @@ const EntryItem: React.FC<EntryItemProps> = ({
                 }} 
                 className="form-checkbox h-4 w-4 text-[rgb(var(--accent-color))] bg-transparent border-2 border-[rgb(var(--input-border-color))] rounded focus:ring-2 focus:ring-[rgb(var(--accent-color))] focus:ring-offset-0 mr-3 mt-0.5 cursor-pointer flex-shrink-0"
                 aria-label={`Mark task ${title} as ${isCompleted ? 'incomplete' : 'complete'}`}
-                disabled={(!allowActions && isCompleted) || (isCurrentlySnoozed && !allowActions)} 
+                disabled={Boolean((!allowActions && isCompleted) || (isCurrentlySnoozed && !allowActions))}
                 onClick={(e) => e.stopPropagation()}
               />
             )}

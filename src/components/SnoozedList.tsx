@@ -1,6 +1,5 @@
 
 
-
 import React from 'react';
 import { Entry, EntryType } from '../types'; 
 import EntryItem from './EntryItem';
@@ -9,7 +8,7 @@ interface SnoozedListProps {
   entries: Entry[];
   onOpenDetailModal: (entry: Entry) => void;
   existingProjects: string[];
-  onOpenSnoozeModal: (entry: Entry) => void;
+  onOpenQuickSnoozeMenu: (entry: Entry, event: React.MouseEvent) => void;
   onUnsnoozeItem: (itemId: string) => void; 
   onDeleteRequest: (entry: Entry) => void;
   onArchiveRequest: (entry: Entry) => void;
@@ -42,7 +41,7 @@ const SnoozedList: React.FC<SnoozedListProps> = ({
     entries, 
     onOpenDetailModal, 
     existingProjects,
-    onOpenSnoozeModal,
+    onOpenQuickSnoozeMenu,
     onUnsnoozeItem,
     onDeleteRequest,
     onArchiveRequest,
@@ -70,7 +69,7 @@ const SnoozedList: React.FC<SnoozedListProps> = ({
           entry={entry}
           allowActions={true} 
           onOpenDetailModal={onOpenDetailModal}
-          onOpenSnoozeModal={onOpenSnoozeModal}
+          onOpenQuickSnoozeMenu={onOpenQuickSnoozeMenu}
           onUnsnoozeItem={onUnsnoozeItem}
           onDeleteRequest={onDeleteRequest}
           onArchiveRequest={onArchiveRequest}

@@ -37,10 +37,17 @@ export enum TabView {
   Notes = 'NOTES',
   CompletedTasks = 'COMPLETED_TASKS', // Kept for viewMode logic, not a direct tab anymore
   ArchivedNotes = 'ARCHIVED_NOTES', // For viewMode logic
-  // SnoozedItems will be handled by a top-level viewMode in App.tsx, not a TabView here
 }
 
 export interface ActiveFilters {
   project?: string;
   priority?: PriorityLevel;
+}
+
+export enum QuickSnoozeOption {
+  LaterToday = 'LATER_TODAY', // +4 hours
+  Tomorrow = 'TOMORROW', // Tomorrow 8 AM
+  ThisWeekend = 'THIS_WEEKEND', // This Friday 5 PM (or next if past)
+  NextWeek = 'NEXT_WEEK', // Next Monday 8 AM
+  PickDateTime = 'PICK_DATE_TIME', // Opens SnoozeModal
 }
