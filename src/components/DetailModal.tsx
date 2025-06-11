@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Entry, EntryType, PriorityLevel } from '../types'; // Added PriorityLevel
+import { Entry, EntryType, PriorityLevel } from '../types'; 
 import { formatDate, formatDueDate, formatArchivedAtDate } from '../utils/dateUtils';
 
 interface DetailModalProps {
@@ -11,24 +11,38 @@ interface DetailModalProps {
   onArchiveRequest?: (entry: Entry) => void;
   onStartEdit?: (id: string, type: EntryType) => void; 
   onOpenCompletionNotesModal?: (task: Entry) => void; 
-  onOpenSnoozeModal?: (entry: Entry) => void;
+  onOpenQuickSnoozeMenu: (entry: Entry, event: React.MouseEvent) => void; 
   onUnsnoozeItem?: (itemId: string) => void; 
 }
 
-const ActionIconButton: React.FC<{ onClick: (e: React.MouseEvent) => void; ariaLabel: string; title: string; children: React.ReactNode; className?: string }> = 
-  ({ onClick, ariaLabel, title, children, className }) => (
+type AriaHasPopupValue = boolean | 'false' | 'true' | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
+
+const ActionIconButton: React.FC<{
+  onClick: (e: React.MouseEvent) => void;
+  ariaLabel: string;
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+  'data-is-snooze-button'?: boolean;
+  id?: string;
+  'aria-haspopup'?: AriaHasPopupValue;
+  'aria-controls'?: string;
+}> = ({ onClick, ariaLabel, title, children, className, ...rest }) => (
   <button
     onClick={onClick}
     className={`p-1.5 rounded-full transition-colors duration-150 ${className}`}
     aria-label={ariaLabel}
     title={title}
+    {...rest}
   >
     {children}
   </button>
 );
 
-const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleComplete, onDeleteRequest, onArchiveRequest, onStartEdit, onOpenCompletionNotesModal, onOpenSnoozeModal, onUnsnoozeItem }) => {
+const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleComplete, onDeleteRequest, onArchiveRequest, onStartEdit, onOpenCompletionNotesModal, onOpenQuickSnoozeMenu, onUnsnoozeItem }) => {
   if (!entry) return null;
+
+  const snoozeButtonId = `qs-btn-${entry.id}`;
 
   const DetailItem: React.FC<{ label: string; value?: string | PriorityLevel | null, isLink?: boolean, inputType?: 'date', textColorClass?: string }> = ({ label, value, isLink, inputType, textColorClass }) => {
     if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) return null;
@@ -83,11 +97,10 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
     }
   }
 
-  const handleSnooze = (e: React.MouseEvent) => {
+  const handleSnoozeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onOpenSnoozeModal) {
-        onOpenSnoozeModal(entry);
-    }
+    // onOpenQuickSnoozeMenu is guaranteed to be defined by App.tsx
+    onOpenQuickSnoozeMenu(entry, e);
   };
 
   const handleUnsnooze = (e: React.MouseEvent) => {
@@ -134,8 +147,17 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
                         </svg>
                     </ActionIconButton>
                 )}
-                {onOpenSnoozeModal && !isCurrentlySnoozed && !entry.isCompleted && !entry.isArchived && ( 
-                    <ActionIconButton onClick={handleSnooze} ariaLabel={`Snooze ${entry.type.toLowerCase()} ${entry.title}`} title="Snooze" className={actionIconColor}>
+                {!isCurrentlySnoozed && !entry.isCompleted && !entry.isArchived && ( 
+                    <ActionIconButton 
+                        onClick={handleSnoozeClick} 
+                        ariaLabel={`Snooze ${entry.type.toLowerCase()} ${entry.title}`} 
+                        title="Snooze" 
+                        className={actionIconColor}
+                        data-is-snooze-button={true}
+                        id={snoozeButtonId}
+                        aria-haspopup="menu"
+                        aria-controls="qs-menu"
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -189,16 +211,16 @@ const DetailModal: React.FC<DetailModalProps> = ({ entry, onClose, onToggleCompl
             {isCurrentlySnoozed && entry.snoozedUntil && (
                 <DetailItem label="Snoozed Until" value={`${formatDate(entry.snoozedUntil)}`} textColorClass="text-sky-400" />
             )}
-            {entry.wokeUpAt && !isCurrentlySnoozed && ( // WokeUpAt should only show if not currently snoozed.
+            {entry.wokeUpAt && !isCurrentlySnoozed && ( 
                  <DetailItem label="Woke Up At" value={`${formatDate(entry.wokeUpAt)}`} textColorClass="text-emerald-400" />
             )}
         </div>
         
-        {entry.type === EntryType.Task && (onToggleComplete || onOpenCompletionNotesModal) && !entry.isArchived && (
+        {entry.type === EntryType.Task && !entry.isArchived && (
             <div className="flex-shrink-0 pt-3 border-t border-[rgb(var(--divider-color))]">
                 <div className="flex justify-end">
                     <button onClick={handleToggleComplete} className={`${actionButtonBaseClass} ${primaryActionClass} w-full sm:w-auto`}
-                     disabled={(entry.isCompleted && !onToggleComplete) || isCurrentlySnoozed } 
+                     disabled={!!isCurrentlySnoozed}
                     >
                     {entry.isCompleted ? "Mark as Incomplete" : "Mark as Complete"}
                     </button>

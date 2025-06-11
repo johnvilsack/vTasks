@@ -13,7 +13,7 @@ interface ActiveTaskListProps {
   onCancelEditTask: (id: string) => void;
   onOpenDetailModal: (entry: Entry) => void;
   onOpenCompletionNotesModal: (task: Entry) => void;
-  onOpenSnoozeModal: (entry: Entry) => void; 
+  onOpenQuickSnoozeMenu: (entry: Entry, event: React.MouseEvent) => void; 
   onUnsnoozeItem: (itemId: string) => void;
   draggedItemId: string | null;
   onDragStartHandler: (id: string, e: React.DragEvent<HTMLDivElement>) => void;
@@ -32,7 +32,7 @@ const ActiveTaskList: React.FC<ActiveTaskListProps> = ({
   onCancelEditTask,
   onOpenDetailModal,
   onOpenCompletionNotesModal,
-  onOpenSnoozeModal,
+  onOpenQuickSnoozeMenu,
   onUnsnoozeItem,
   draggedItemId,
   onDragStartHandler,
@@ -59,7 +59,7 @@ const ActiveTaskList: React.FC<ActiveTaskListProps> = ({
           allowActions={true}
           onOpenDetailModal={onOpenDetailModal}
           onOpenCompletionNotesModal={onOpenCompletionNotesModal}
-          onOpenSnoozeModal={onOpenSnoozeModal}
+          onOpenQuickSnoozeMenu={onOpenQuickSnoozeMenu}
           onUnsnoozeItem={onUnsnoozeItem}
           draggedItemId={draggedItemId}
           onDragStartHandler={onDragStartHandler}

@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Entry, EntryType, TabView, PriorityLevel, ActiveFilters } from './types';
+import { Entry, EntryType, TabView, PriorityLevel, ActiveFilters, QuickSnoozeOption } from './types';
 import useLocalStorage from './hooks/useLocalStorage';
 import InputForm from './components/InputForm';
 import Tabs from './components/Tabs';
@@ -18,8 +18,18 @@ import ConfirmArchiveModal from './components/ConfirmArchiveModal';
 import ExportOptionsModal from './components/ExportOptionsModal';
 import ImportDataModal, { ImportMode } from './components/ImportDataModal';
 import SnoozeModal from './components/SnoozeModal'; 
+import QuickSnoozeMenu from './components/QuickSnoozeMenu';
+import { getLaterTodayDate, getTomorrowDate, getThisWeekendSnoozeDate, getNextWeekSnoozeDate } from './utils/dateUtils';
+
 
 type ViewMode = 'main' | 'completed' | 'archived' | 'snoozed'; 
+
+interface QuickSnoozeMenuState {
+  isOpen: boolean;
+  entry: Entry | null;
+  position: { top: number; left: number } | null;
+  triggerButtonId: string | null; // ID of the button that triggered the menu
+}
 
 const App: React.FC = () => {
   const [entries, setEntries] = useLocalStorage<Entry[]>('task-notes-entries-v3', []); 
@@ -51,19 +61,38 @@ const App: React.FC = () => {
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
+  const [quickSnoozeMenuState, setQuickSnoozeMenuState] = useState<QuickSnoozeMenuState>({
+    isOpen: false,
+    entry: null,
+    position: null,
+    triggerButtonId: null,
+  });
+  const quickSnoozeMenuRef = useRef<HTMLDivElement>(null); 
+
+  const closeQuickSnoozeMenu = useCallback(() => {
+    setQuickSnoozeMenuState({ isOpen: false, entry: null, position: null, triggerButtonId: null });
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
         setIsFilterDropdownOpen(false);
       }
+      if (quickSnoozeMenuState.isOpen && quickSnoozeMenuRef.current && !quickSnoozeMenuRef.current.contains(event.target as Node)) {
+        const targetElement = event.target as HTMLElement;
+        const isSnoozeButton = targetElement.closest('[data-is-snooze-button="true"]');
+        if (!isSnoozeButton || targetElement.id !== quickSnoozeMenuState.triggerButtonId) {
+            closeQuickSnoozeMenu();
+        }
+      }
     };
-    if (isFilterDropdownOpen) {
+    if (isFilterDropdownOpen || quickSnoozeMenuState.isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isFilterDropdownOpen]);
+  }, [isFilterDropdownOpen, quickSnoozeMenuState.isOpen, quickSnoozeMenuState.triggerButtonId, closeQuickSnoozeMenu]);
 
 
   // Periodically check for unsnoozing items
@@ -97,7 +126,6 @@ const App: React.FC = () => {
     let entryToShow = { ...entry };
     let entryUpdated = false;
 
-    // If the entry has woken up and is not currently snoozed, clear wokeUpAt on interaction
     if (entryToShow.wokeUpAt && (!entryToShow.snoozedUntil || new Date(entryToShow.snoozedUntil).getTime() <= new Date().getTime())) {
         entryToShow.wokeUpAt = undefined;
         entryUpdated = true;
@@ -685,10 +713,11 @@ const App: React.FC = () => {
     reader.readAsText(file);
   }, [setEntries, closeImportDataModal]);
 
-  const handleOpenSnoozeModal = (entry: Entry) => {
+  const openActualSnoozeModal = (entry: Entry) => {
     setEntryToSnooze(entry);
     setIsSnoozeModalOpen(true);
     if (isDetailModalOpen) handleCloseDetailModal();
+     closeQuickSnoozeMenu();
   };
 
   const handleCloseSnoozeModal = () => {
@@ -697,19 +726,99 @@ const App: React.FC = () => {
   };
 
   const handleConfirmSnooze = useCallback((snoozeUntilValue: string) => {
-    if (!entryToSnooze) return;
+    if (!entryToSnooze && !quickSnoozeMenuState.entry) return;
+    
+    const targetEntry = entryToSnooze || quickSnoozeMenuState.entry;
+    if (!targetEntry) return;
+
     setEntries(prevEntries =>
       prevEntries.map(e =>
-        e.id === entryToSnooze.id
+        e.id === targetEntry.id
           ? { ...e, snoozedUntil: snoozeUntilValue, wokeUpAt: undefined } 
           : e
       )
     );
-    if (selectedEntryForDetail?.id === entryToSnooze.id) {
+    if (selectedEntryForDetail?.id === targetEntry.id) {
       setSelectedEntryForDetail(prev => prev ? { ...prev, snoozedUntil: snoozeUntilValue, wokeUpAt: undefined } : null);
     }
     handleCloseSnoozeModal();
-  }, [entryToSnooze, setEntries, selectedEntryForDetail]);
+    closeQuickSnoozeMenu();
+  }, [entryToSnooze, quickSnoozeMenuState.entry, setEntries, selectedEntryForDetail, closeQuickSnoozeMenu]);
+
+
+ const handleOpenQuickSnoozeMenu = useCallback((entry: Entry, event: React.MouseEvent) => {
+    event.stopPropagation();
+    const buttonElement = event.currentTarget as HTMLElement;
+    const rect = buttonElement.getBoundingClientRect();
+    const buttonId = buttonElement.id; 
+
+    const estimatedMenuHeight = 180; // px, for 5 items (5 * ~36px)
+    const estimatedMenuWidth = 224;  // px, w-56 from Tailwind
+    const margin = 5; // px, margin from viewport edge or button
+
+    let topPosition: number;
+    const spaceBelowAvailable = window.innerHeight - (rect.bottom + margin);
+    const spaceAboveAvailable = rect.top - margin;
+
+    if (spaceBelowAvailable >= estimatedMenuHeight) {
+      topPosition = rect.bottom + margin;
+    } else if (spaceAboveAvailable >= estimatedMenuHeight) {
+      topPosition = rect.top - estimatedMenuHeight - margin;
+    } else {
+      if (spaceAboveAvailable > spaceBelowAvailable) {
+        topPosition = Math.max(margin, rect.top - estimatedMenuHeight - margin);
+      } else {
+        topPosition = rect.bottom + margin;
+      }
+    }
+    
+    let leftPosition = rect.left;
+    if (leftPosition + estimatedMenuWidth > window.innerWidth - margin) {
+      leftPosition = window.innerWidth - estimatedMenuWidth - margin;
+    }
+    if (leftPosition < margin) {
+      leftPosition = margin;
+    }
+
+    setQuickSnoozeMenuState({
+      isOpen: true,
+      entry: entry,
+      position: { top: topPosition, left: leftPosition },
+      triggerButtonId: buttonId,
+    });
+
+    if (isDetailModalOpen) handleCloseDetailModal();
+  }, [isDetailModalOpen, handleCloseDetailModal]);
+
+
+  const handleSelectQuickSnoozeOption = useCallback((option: QuickSnoozeOption) => {
+    if (!quickSnoozeMenuState.entry) return;
+
+    if (option === QuickSnoozeOption.PickDateTime) {
+      openActualSnoozeModal(quickSnoozeMenuState.entry); // This already calls closeQuickSnoozeMenu
+    } else {
+      let snoozeDate: Date;
+      switch (option) {
+        case QuickSnoozeOption.LaterToday:
+          snoozeDate = getLaterTodayDate();
+          break;
+        case QuickSnoozeOption.Tomorrow:
+          snoozeDate = getTomorrowDate();
+          break;
+        case QuickSnoozeOption.ThisWeekend:
+          snoozeDate = getThisWeekendSnoozeDate();
+          break;
+        case QuickSnoozeOption.NextWeek:
+          snoozeDate = getNextWeekSnoozeDate();
+          break;
+        default:
+          closeQuickSnoozeMenu();
+          return; 
+      }
+      handleConfirmSnooze(snoozeDate.toISOString()); // This also calls closeQuickSnoozeMenu
+    }
+  }, [quickSnoozeMenuState.entry, handleConfirmSnooze, closeQuickSnoozeMenu]);
+
 
   const handleUnsnoozeItem = useCallback((itemId: string) => {
     const nowISO = new Date().toISOString();
@@ -839,7 +948,7 @@ const App: React.FC = () => {
                   onCancelEditTask={handleCancelEdit}
                   onOpenDetailModal={handleOpenDetailModal}
                   onOpenCompletionNotesModal={handleOpenCompletionNotesModal} 
-                  onOpenSnoozeModal={handleOpenSnoozeModal}
+                  onOpenQuickSnoozeMenu={handleOpenQuickSnoozeMenu}
                   onUnsnoozeItem={handleUnsnoozeItem}
                   draggedItemId={draggedItemId} 
                   onDragStartHandler={handleDragStart} 
@@ -857,7 +966,7 @@ const App: React.FC = () => {
                   onSaveEdit={handleSaveEdit} 
                   onCancelEdit={handleCancelEdit} 
                   onOpenDetailModal={handleOpenDetailModal} 
-                  onOpenSnoozeModal={handleOpenSnoozeModal}
+                  onOpenQuickSnoozeMenu={handleOpenQuickSnoozeMenu}
                   onUnsnoozeItem={handleUnsnoozeItem}
                   draggedItemId={draggedItemId} 
                   onDragStartHandler={handleDragStart} 
@@ -963,7 +1072,7 @@ const App: React.FC = () => {
                 entries={snoozedEntries} 
                 onOpenDetailModal={handleOpenDetailModal} 
                 existingProjects={existingProjectsForAutocomplete} 
-                onOpenSnoozeModal={handleOpenSnoozeModal}
+                onOpenQuickSnoozeMenu={handleOpenQuickSnoozeMenu}
                 onUnsnoozeItem={handleUnsnoozeItem}
                 onDeleteRequest={requestDeleteConfirmation}
                 onArchiveRequest={requestArchiveConfirmation}
@@ -1001,7 +1110,7 @@ const App: React.FC = () => {
             onArchiveRequest={requestArchiveConfirmation} 
             onStartEdit={handleStartEdit}
             onOpenCompletionNotesModal={handleOpenCompletionNotesModal}
-            onOpenSnoozeModal={handleOpenSnoozeModal}
+            onOpenQuickSnoozeMenu={handleOpenQuickSnoozeMenu}
             onUnsnoozeItem={handleUnsnoozeItem}
         />
       )}
@@ -1060,6 +1169,17 @@ const App: React.FC = () => {
           currentSnoozeUntil={entryToSnooze.snoozedUntil}
         />
       )}
+      <div ref={quickSnoozeMenuRef}> 
+        {quickSnoozeMenuState.isOpen && quickSnoozeMenuState.entry && quickSnoozeMenuState.triggerButtonId && (
+          <QuickSnoozeMenu
+            isOpen={quickSnoozeMenuState.isOpen}
+            onClose={closeQuickSnoozeMenu}
+            onSelectOption={handleSelectQuickSnoozeOption}
+            position={quickSnoozeMenuState.position}
+            triggerButtonId={quickSnoozeMenuState.triggerButtonId}
+          />
+        )}
+      </div>
     </div>
   );
 };
