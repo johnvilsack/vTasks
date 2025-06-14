@@ -23,8 +23,10 @@ const QuickSnoozeMenu: React.FC<QuickSnoozeMenuProps> = ({
   const menuOptions = [
     { label: 'Later Today (+4h)', option: QuickSnoozeOption.LaterToday },
     { label: 'Tomorrow (8 AM)', option: QuickSnoozeOption.Tomorrow },
+    { label: 'Day After (8 AM)', option: QuickSnoozeOption.DayAfterTomorrow },
     { label: 'This Weekend (Fri 5 PM)', option: QuickSnoozeOption.ThisWeekend },
     { label: 'Next Week (Mon 8 AM)', option: QuickSnoozeOption.NextWeek },
+    { label: 'Weekly Surprise (Random)', option: QuickSnoozeOption.WeeklySurprise },
     { label: 'Pick Date & Time...', option: QuickSnoozeOption.PickDateTime },
   ];
 

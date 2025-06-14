@@ -19,7 +19,7 @@ import ExportOptionsModal from './components/ExportOptionsModal';
 import ImportDataModal, { ImportMode } from './components/ImportDataModal';
 import SnoozeModal from './components/SnoozeModal'; 
 import QuickSnoozeMenu from './components/QuickSnoozeMenu';
-import { getLaterTodayDate, getTomorrowDate, getThisWeekendSnoozeDate, getNextWeekSnoozeDate } from './utils/dateUtils';
+import { getLaterTodayDate, getTomorrowDate, getThisWeekendSnoozeDate, getNextWeekSnoozeDate, getDayAfterTomorrowDate, getRandomWeeklySnoozeDate } from './utils/dateUtils';
 
 
 type ViewMode = 'main' | 'completed' | 'archived' | 'snoozed'; 
@@ -752,7 +752,7 @@ const App: React.FC = () => {
     const rect = buttonElement.getBoundingClientRect();
     const buttonId = buttonElement.id; 
 
-    const estimatedMenuHeight = 180; // px, for 5 items (5 * ~36px)
+    const estimatedMenuHeight = 252; // px, for 7 items (7 * ~36px)
     const estimatedMenuWidth = 224;  // px, w-56 from Tailwind
     const margin = 5; // px, margin from viewport edge or button
 
@@ -805,11 +805,17 @@ const App: React.FC = () => {
         case QuickSnoozeOption.Tomorrow:
           snoozeDate = getTomorrowDate();
           break;
+        case QuickSnoozeOption.DayAfterTomorrow:
+          snoozeDate = getDayAfterTomorrowDate();
+          break;
         case QuickSnoozeOption.ThisWeekend:
           snoozeDate = getThisWeekendSnoozeDate();
           break;
         case QuickSnoozeOption.NextWeek:
           snoozeDate = getNextWeekSnoozeDate();
+          break;
+        case QuickSnoozeOption.WeeklySurprise:
+          snoozeDate = getRandomWeeklySnoozeDate();
           break;
         default:
           closeQuickSnoozeMenu();

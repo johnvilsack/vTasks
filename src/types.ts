@@ -49,5 +49,7 @@ export enum QuickSnoozeOption {
   Tomorrow = 'TOMORROW', // Tomorrow 8 AM
   ThisWeekend = 'THIS_WEEKEND', // This Friday 5 PM (or next if past)
   NextWeek = 'NEXT_WEEK', // Next Monday 8 AM
+  DayAfterTomorrow = 'DAY_AFTER_TOMORROW', // Day after tomorrow 8 AM
+  WeeklySurprise = 'WEEKLY_SURPRISE', // Random time in next 7 days
   PickDateTime = 'PICK_DATE_TIME', // Opens SnoozeModal
 }

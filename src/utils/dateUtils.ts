@@ -1,4 +1,5 @@
 
+
 export const getWeekOfYear = (dateString: string): { week: number; year: number } => {
   const date = new Date(dateString);
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -142,5 +143,21 @@ export const getNextWeekSnoozeDate = (): Date => {
   const snoozeDate = new Date(now);
   snoozeDate.setDate(now.getDate() + daysUntilMonday);
   snoozeDate.setHours(8, 0, 0, 0); // Monday 8:00 AM
+  return snoozeDate;
+};
+
+export const getDayAfterTomorrowDate = (): Date => {
+  const dayAfterTomorrow = new Date();
+  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+  dayAfterTomorrow.setHours(8, 0, 0, 0); // 8:00 AM
+  return dayAfterTomorrow;
+};
+
+export const getRandomWeeklySnoozeDate = (): Date => {
+  const now = new Date();
+  const sevenDaysInMillis = 7 * 24 * 60 * 60 * 1000;
+  // Add a small buffer (e.g., 1 minute) to ensure it's in the future
+  const randomFutureMillis = Math.random() * (sevenDaysInMillis - 60000) + 60000; 
+  const snoozeDate = new Date(now.getTime() + randomFutureMillis);
   return snoozeDate;
 };
